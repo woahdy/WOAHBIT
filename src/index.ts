@@ -5,3 +5,4 @@ export * from './bch/adapter.js';
 export * from './app/validation-service.js';
 export * from './app/explorer-ui.js';
 export * from './app/server.js';
+export * from './app/runtime.js';
