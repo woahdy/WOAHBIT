@@ -1,4 +1,5 @@
 import type { WoahbitServerConfig } from './server.js';
+import { parseWalletEncryptionKey } from '../wallet/vault.js';
 
 export interface WoahbitEnvironment {
   WOAHBIT_RPC_URL?: string;
@@ -6,6 +7,7 @@ export interface WoahbitEnvironment {
   WOAHBIT_RPC_PASSWORD?: string;
   WOAHBIT_RPC_TIMEOUT_MS?: string;
   WOAHBIT_FALLBACK_API_URL?: string;
+  WOAHBIT_WALLET_ENCRYPTION_KEY?: string;
   PORT?: string;
 }
 
@@ -19,6 +21,15 @@ function parseInteger(name: string, value: string, minimum: number, maximum: num
     throw new Error(`${name} must be an integer between ${minimum} and ${maximum}`);
   }
   return parsed;
+}
+
+function walletVaultReady(encodedKey: string | undefined): boolean {
+  if (!encodedKey?.trim()) {
+    return false;
+  }
+  const key = parseWalletEncryptionKey(encodedKey);
+  key.fill(0);
+  return true;
 }
 
 export function serverConfigFromEnvironment(environment: WoahbitEnvironment): WoahbitServerConfig {
@@ -41,6 +52,7 @@ export function serverConfigFromEnvironment(environment: WoahbitEnvironment): Wo
     rpcPassword: environment.WOAHBIT_RPC_PASSWORD,
     rpcTimeoutMs,
     fallbackApiUrl: environment.WOAHBIT_FALLBACK_API_URL?.trim() || undefined,
+    walletVaultReady: walletVaultReady(environment.WOAHBIT_WALLET_ENCRYPTION_KEY),
     port,
   };
 }
