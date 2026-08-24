@@ -14,6 +14,10 @@ function readPushes(script: Uint8Array): Uint8Array[] {
   while (cursor < script.length) {
     const opcode = script[cursor++];
     let length: number;
+    if (opcode === 0x00) {
+      pushes.push(new Uint8Array());
+      continue;
+    }
     if (opcode >= 0x01 && opcode <= 0x4b) length = opcode;
     else if (opcode === 0x4c) {
       if (cursor >= script.length) throw new SlpParseError('Truncated OP_PUSHDATA1');
