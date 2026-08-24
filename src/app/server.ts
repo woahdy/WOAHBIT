@@ -7,6 +7,7 @@ export interface WoahbitServerConfig {
   rpcUrl: string;
   rpcUsername?: string;
   rpcPassword?: string;
+  rpcTimeoutMs?: number;
   port?: number;
 }
 
@@ -38,6 +39,7 @@ export function createWoahbitServer(config: WoahbitServerConfig) {
     url: config.rpcUrl,
     username: config.rpcUsername,
     password: config.rpcPassword,
+    timeoutMs: config.rpcTimeoutMs,
   });
   const service = new WoahbitValidationService(resolver);
 
