@@ -11,3 +11,12 @@ test('renders the WOAHBIT read-only transaction explorer', () => {
   assert.match(page, /fetch\('\/validate\//);
   assert.match(page, /Valid SLP/);
 });
+
+test('renders BCH node connectivity status support', () => {
+  const page = renderExplorerPage();
+
+  assert.match(page, /id="node-status"/);
+  assert.match(page, /fetch\('\/node-status'/);
+  assert.match(page, /BCH node offline/);
+  assert.match(page, /syncing/);
+});
