@@ -4,7 +4,20 @@ export interface WoahbitEnvironment {
   WOAHBIT_RPC_URL?: string;
   WOAHBIT_RPC_USERNAME?: string;
   WOAHBIT_RPC_PASSWORD?: string;
+  WOAHBIT_RPC_TIMEOUT_MS?: string;
   PORT?: string;
+}
+
+function parseInteger(name: string, value: string, minimum: number, maximum: number): number {
+  const trimmed = value.trim();
+  if (!/^\d+$/.test(trimmed)) {
+    throw new Error(`${name} must be an integer between ${minimum} and ${maximum}`);
+  }
+  const parsed = Number(trimmed);
+  if (!Number.isSafeInteger(parsed) || parsed < minimum || parsed > maximum) {
+    throw new Error(`${name} must be an integer between ${minimum} and ${maximum}`);
+  }
+  return parsed;
 }
 
 export function serverConfigFromEnvironment(environment: WoahbitEnvironment): WoahbitServerConfig {
@@ -13,18 +26,19 @@ export function serverConfigFromEnvironment(environment: WoahbitEnvironment): Wo
     throw new Error('WOAHBIT_RPC_URL is required');
   }
 
-  let port = 3000;
-  if (environment.PORT?.trim()) {
-    port = Number.parseInt(environment.PORT, 10);
-    if (!Number.isInteger(port) || port < 1 || port > 65535) {
-      throw new Error('PORT must be an integer between 1 and 65535');
-    }
-  }
+  const port = environment.PORT?.trim()
+    ? parseInteger('PORT', environment.PORT, 1, 65535)
+    : 3000;
+
+  const rpcTimeoutMs = environment.WOAHBIT_RPC_TIMEOUT_MS?.trim()
+    ? parseInteger('WOAHBIT_RPC_TIMEOUT_MS', environment.WOAHBIT_RPC_TIMEOUT_MS, 1000, 120000)
+    : 15000;
 
   return {
     rpcUrl,
     rpcUsername: environment.WOAHBIT_RPC_USERNAME,
     rpcPassword: environment.WOAHBIT_RPC_PASSWORD,
+    rpcTimeoutMs,
     port,
   };
 }
