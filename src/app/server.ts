@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { BchJsonRpcResolver } from '../bch/adapter.js';
 import { FallbackParentResolver, FullStackRestResolver } from '../bch/fullstack-rest.js';
 import { renderExplorerPage } from './explorer-ui.js';
+import { renderWalletPage } from './wallet-ui.js';
 import { WoahbitValidationService } from './validation-service.js';
 
 export interface WoahbitServerConfig {
@@ -61,6 +62,11 @@ export function createWoahbitServer(config: WoahbitServerConfig) {
       const path = pathname(request);
       if (path === '/') {
         html(response, 200, renderExplorerPage());
+        return;
+      }
+
+      if (path === '/wallet') {
+        html(response, 200, renderWalletPage());
         return;
       }
 
