@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: woahbit
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: WOAHBIT_RPC_URL
+        sync: false
+      - key: WOAHBIT_RPC_USERNAME
+        sync: false
+      - key: WOAHBIT_RPC_PASSWORD
+        sync: false
