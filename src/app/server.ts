@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { BchJsonRpcResolver } from '../bch/adapter.js';
+import { renderExplorerPage } from './explorer-ui.js';
 import { WoahbitValidationService } from './validation-service.js';
 
 export interface WoahbitServerConfig {
@@ -15,6 +16,17 @@ function json(response: ServerResponse, status: number, body: unknown): void {
     'cache-control': 'no-store',
   });
   response.end(JSON.stringify(body));
+}
+
+function html(response: ServerResponse, status: number, body: string): void {
+  response.writeHead(status, {
+    'content-type': 'text/html; charset=utf-8',
+    'cache-control': 'no-store',
+    'content-security-policy': "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+    'x-content-type-options': 'nosniff',
+    'referrer-policy': 'no-referrer',
+  });
+  response.end(body);
 }
 
 function pathname(request: IncomingMessage): string {
@@ -37,6 +49,11 @@ export function createWoahbitServer(config: WoahbitServerConfig) {
       }
 
       const path = pathname(request);
+      if (path === '/') {
+        html(response, 200, renderExplorerPage());
+        return;
+      }
+
       if (path === '/health') {
         json(response, 200, { ok: true, service: 'woahbit', mode: 'read-only' });
         return;
@@ -63,7 +80,7 @@ export function startWoahbitServer(config: WoahbitServerConfig) {
   const port = config.port ?? 3000;
   const server = createWoahbitServer(config);
   server.listen(port, () => {
-    console.log(`WOAHBIT read-only API listening on http://localhost:${port}`);
+    console.log(`WOAHBIT read-only app listening on http://localhost:${port}`);
   });
   return server;
 }
