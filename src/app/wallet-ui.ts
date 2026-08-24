@@ -1,4 +1,14 @@
-export function renderWalletPage(): string {
+export interface WalletPageOptions {
+  vaultReady?: boolean;
+}
+
+export function renderWalletPage(options: WalletPageOptions = {}): string {
+  const vaultReady = options.vaultReady === true;
+  const vaultLabel = vaultReady ? 'Vault encryption ready' : 'Vault key not configured';
+  const vaultNotice = vaultReady
+    ? 'Encryption is ready, but no recovery phrase is stored. Import remains disabled until protected local setup and recovery testing are complete.'
+    : 'Set WOAHBIT_WALLET_ENCRYPTION_KEY with a valid 32-byte base64 key before recovery material can ever be accepted.';
+
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -77,7 +87,7 @@ export function renderWalletPage(): string {
           <div class="eyebrow">Total portfolio</div>
           <div class="amount">— BCH</div>
           <div class="fiat">Balances appear after secure wallet setup.</div>
-          <div class="notice">No recovery phrase is stored yet. Real funds must not be sent until import and recovery testing are complete.</div>
+          <div class="notice">${vaultNotice}</div>
         </section>
         <section class="card actions">
           <div class="eyebrow">Wallet actions</div>
@@ -98,10 +108,10 @@ export function renderWalletPage(): string {
           <div class="eyebrow">Setup progress</div>
           <h2>Badger-style capabilities</h2>
           <div class="steps">
-            <div class="step"><span>1</span><div>Encrypted company vault foundation complete.</div></div>
-            <div class="step"><span>2</span><div>Protected import, receive address, and balances next.</div></div>
-            <div class="step"><span>3</span><div>Reviewed BCH/SLP sending and burn protection.</div></div>
-            <div class="step"><span>4</span><div>Per-site connection approvals, then iPhone app.</div></div>
+            <div class="step"><span>1</span><div>${vaultLabel}.</div></div>
+            <div class="step"><span>2</span><div>Protected local import and recovery verification next.</div></div>
+            <div class="step"><span>3</span><div>Receive address and read-only BCH/SLP balances.</div></div>
+            <div class="step"><span>4</span><div>Reviewed BCH/SLP sending and burn protection.</div></div>
           </div>
         </section>
       </div>
