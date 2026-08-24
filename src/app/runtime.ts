@@ -5,6 +5,7 @@ export interface WoahbitEnvironment {
   WOAHBIT_RPC_USERNAME?: string;
   WOAHBIT_RPC_PASSWORD?: string;
   WOAHBIT_RPC_TIMEOUT_MS?: string;
+  WOAHBIT_FALLBACK_API_URL?: string;
   PORT?: string;
 }
 
@@ -39,6 +40,7 @@ export function serverConfigFromEnvironment(environment: WoahbitEnvironment): Wo
     rpcUsername: environment.WOAHBIT_RPC_USERNAME,
     rpcPassword: environment.WOAHBIT_RPC_PASSWORD,
     rpcTimeoutMs,
+    fallbackApiUrl: environment.WOAHBIT_FALLBACK_API_URL?.trim() || undefined,
     port,
   };
 }

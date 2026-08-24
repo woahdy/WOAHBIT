@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { BchJsonRpcResolver } from '../bch/adapter.js';
+import { FallbackParentResolver, FullStackRestResolver } from '../bch/fullstack-rest.js';
 import { renderExplorerPage } from './explorer-ui.js';
 import { WoahbitValidationService } from './validation-service.js';
 
@@ -8,6 +9,7 @@ export interface WoahbitServerConfig {
   rpcUsername?: string;
   rpcPassword?: string;
   rpcTimeoutMs?: number;
+  fallbackApiUrl?: string;
   port?: number;
 }
 
@@ -35,12 +37,18 @@ function pathname(request: IncomingMessage): string {
 }
 
 export function createWoahbitServer(config: WoahbitServerConfig) {
-  const resolver = new BchJsonRpcResolver({
+  const rpcResolver = new BchJsonRpcResolver({
     url: config.rpcUrl,
     username: config.rpcUsername,
     password: config.rpcPassword,
     timeoutMs: config.rpcTimeoutMs,
   });
+  const resolver = config.fallbackApiUrl
+    ? new FallbackParentResolver(
+        rpcResolver,
+        new FullStackRestResolver({ baseUrl: config.fallbackApiUrl, timeoutMs: config.rpcTimeoutMs }),
+      )
+    : rpcResolver;
   const service = new WoahbitValidationService(resolver);
 
   return createServer(async (request, response) => {
@@ -63,13 +71,14 @@ export function createWoahbitServer(config: WoahbitServerConfig) {
 
       if (path === '/node-status') {
         try {
-          const status = await resolver.getNodeStatus();
+          const status = await rpcResolver.getNodeStatus();
           json(response, 200, status);
         } catch (error) {
           json(response, 503, {
             connected: false,
             error: 'BCH node unavailable',
             message: error instanceof Error ? error.message : 'Unknown error',
+            fallbackConfigured: Boolean(config.fallbackApiUrl),
           });
         }
         return;

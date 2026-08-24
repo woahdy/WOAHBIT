@@ -8,6 +8,7 @@ test('builds server config from environment variables', () => {
     WOAHBIT_RPC_USERNAME: 'rpcuser',
     WOAHBIT_RPC_PASSWORD: 'rpcpass',
     WOAHBIT_RPC_TIMEOUT_MS: '12000',
+    WOAHBIT_FALLBACK_API_URL: 'https://bch.fullstack.cash/v6/',
     PORT: '8080',
   });
 
@@ -16,6 +17,7 @@ test('builds server config from environment variables', () => {
     rpcUsername: 'rpcuser',
     rpcPassword: 'rpcpass',
     rpcTimeoutMs: 12000,
+    fallbackApiUrl: 'https://bch.fullstack.cash/v6/',
     port: 8080,
   });
 });
@@ -27,6 +29,15 @@ test('uses safe runtime defaults', () => {
 
   assert.equal(config.port, 3000);
   assert.equal(config.rpcTimeoutMs, 15000);
+  assert.equal(config.fallbackApiUrl, undefined);
+});
+
+test('ignores an empty fallback API URL', () => {
+  const config = serverConfigFromEnvironment({
+    WOAHBIT_RPC_URL: 'http://127.0.0.1:8332',
+    WOAHBIT_FALLBACK_API_URL: '   ',
+  });
+  assert.equal(config.fallbackApiUrl, undefined);
 });
 
 test('requires an RPC URL', () => {
