@@ -11,6 +11,7 @@ export interface WoahbitServerConfig {
   rpcPassword?: string;
   rpcTimeoutMs?: number;
   fallbackApiUrl?: string;
+  walletVaultReady?: boolean;
   port?: number;
 }
 
@@ -51,6 +52,7 @@ export function createWoahbitServer(config: WoahbitServerConfig) {
       )
     : rpcResolver;
   const service = new WoahbitValidationService(resolver);
+  const walletVaultReady = config.walletVaultReady === true;
 
   return createServer(async (request, response) => {
     try {
@@ -66,7 +68,18 @@ export function createWoahbitServer(config: WoahbitServerConfig) {
       }
 
       if (path === '/wallet') {
-        html(response, 200, renderWalletPage());
+        html(response, 200, renderWalletPage({ vaultReady: walletVaultReady }));
+        return;
+      }
+
+      if (path === '/wallet-status') {
+        json(response, 200, {
+          configured: false,
+          vaultReady: walletVaultReady,
+          recoveryPhraseStored: false,
+          signingEnabled: false,
+          broadcastingEnabled: false,
+        });
         return;
       }
 
