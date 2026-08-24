@@ -59,6 +59,20 @@ export function createWoahbitServer(config: WoahbitServerConfig) {
         return;
       }
 
+      if (path === '/node-status') {
+        try {
+          const status = await resolver.getNodeStatus();
+          json(response, 200, status);
+        } catch (error) {
+          json(response, 503, {
+            connected: false,
+            error: 'BCH node unavailable',
+            message: error instanceof Error ? error.message : 'Unknown error',
+          });
+        }
+        return;
+      }
+
       const match = path.match(/^\/validate\/([0-9a-fA-F]{64})$/);
       if (match?.[1]) {
         const result = await service.validateTransaction(match[1]);

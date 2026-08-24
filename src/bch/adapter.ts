@@ -4,6 +4,13 @@ import type { ParentResolver } from '../slp/validator.js';
 interface RpcInput { txid?: string; vout?: number }
 interface RpcOutput { value: number | string; scriptPubKey?: { hex?: string } }
 interface RpcTransaction { txid: string; vin: RpcInput[]; vout: RpcOutput[] }
+interface RpcBlockchainInfo {
+  chain: string;
+  blocks: number;
+  headers: number;
+  verificationprogress?: number;
+  initialblockdownload?: boolean;
+}
 interface RpcResponse<T> { result?: T; error?: { code: number; message: string } | null }
 
 export interface BchRpcConfig {
@@ -11,6 +18,15 @@ export interface BchRpcConfig {
   username?: string;
   password?: string;
   timeoutMs?: number;
+}
+
+export interface BchNodeStatus {
+  connected: true;
+  chain: string;
+  blocks: number;
+  headers: number;
+  verificationProgress: number;
+  initialBlockDownload: boolean;
 }
 
 export class BchRpcError extends Error {}
@@ -54,6 +70,43 @@ export class BchJsonRpcResolver implements ParentResolver {
 
   constructor(private readonly config: BchRpcConfig) {}
 
+  private credentials(): string | undefined {
+    return this.config.username === undefined
+      ? undefined
+      : Buffer.from(`${this.config.username}:${this.config.password ?? ''}`).toString('base64');
+  }
+
+  async getNodeStatus(): Promise<BchNodeStatus> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.config.timeoutMs ?? 15_000);
+    const credentials = this.credentials();
+    try {
+      const response = await fetch(this.config.url, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          ...(credentials ? { authorization: `Basic ${credentials}` } : {}),
+        },
+        body: JSON.stringify({ jsonrpc: '1.0', id: ++this.id, method: 'getblockchaininfo', params: [] }),
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new BchRpcError(`BCH RPC HTTP ${response.status}`);
+      const payload = await response.json() as RpcResponse<RpcBlockchainInfo>;
+      if (payload.error) throw new BchRpcError(`BCH RPC ${payload.error.code}: ${payload.error.message}`);
+      if (!payload.result) throw new BchRpcError('BCH RPC returned no blockchain info');
+      return {
+        connected: true,
+        chain: payload.result.chain,
+        blocks: payload.result.blocks,
+        headers: payload.result.headers,
+        verificationProgress: payload.result.verificationprogress ?? 0,
+        initialBlockDownload: payload.result.initialblockdownload ?? false,
+      };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   async getTransaction(txid: string): Promise<BchTransaction | null> {
     const normalized = txid.toLowerCase();
     if (!/^[0-9a-f]{64}$/.test(normalized)) throw new BchRpcError('Invalid transaction id');
@@ -61,7 +114,7 @@ export class BchJsonRpcResolver implements ParentResolver {
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.config.timeoutMs ?? 15_000);
-    const credentials = this.config.username === undefined ? undefined : Buffer.from(`${this.config.username}:${this.config.password ?? ''}`).toString('base64');
+    const credentials = this.credentials();
     try {
       const response = await fetch(this.config.url, {
         method: 'POST',

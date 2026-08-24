@@ -11,8 +11,15 @@ export function renderExplorerPage(): string {
     * { box-sizing: border-box; }
     body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 50% 0%, #173b2c 0%, #0b1d16 34%, #050806 72%); color: #f4fff9; }
     main { width: min(920px, calc(100% - 32px)); margin: 0 auto; padding: 72px 0; }
-    .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 52px; }
+    .brand-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 52px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
     .mark { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid #48e59a66; border-radius: 14px; background: #0f2c20; box-shadow: 0 0 38px #31d98b24; font-weight: 900; color: #5cf0a8; }
+    .node { display: inline-flex; align-items: center; gap: 8px; border: 1px solid #ffffff17; border-radius: 999px; padding: 8px 11px; color: #8aa497; background: #07100b99; font-size: .76rem; font-weight: 800; letter-spacing: .04em; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #77857e; box-shadow: 0 0 0 3px #77857e18; }
+    .node.connected { color: #75efb2; border-color: #54e7a333; }
+    .node.connected .dot { background: #5cf0a8; box-shadow: 0 0 0 3px #5cf0a81c, 0 0 14px #5cf0a877; }
+    .node.disconnected { color: #ff9b9b; border-color: #ff67672c; }
+    .node.disconnected .dot { background: #ff7777; box-shadow: 0 0 0 3px #ff676718; }
     h1 { margin: 0; font-size: clamp(2.6rem, 7vw, 5rem); letter-spacing: -0.06em; line-height: .95; }
     .accent { color: #5cf0a8; }
     .lede { max-width: 650px; margin: 20px 0 38px; color: #abc6b7; font-size: 1.05rem; line-height: 1.65; }
@@ -35,12 +42,15 @@ export function renderExplorerPage(): string {
     .output { display: grid; grid-template-columns: 70px 1fr auto; gap: 12px; padding: 13px 14px; border: 1px solid #ffffff12; border-radius: 12px; background: #ffffff06; }
     .muted { color: #769080; }
     footer { margin-top: 26px; color: #577063; font-size: .82rem; }
-    @media (max-width: 640px) { form { flex-direction: column; } button { min-height: 52px; } dl { grid-template-columns: 1fr; gap: 4px; } dd { margin-bottom: 10px; } .output { grid-template-columns: 52px 1fr; } .output span:last-child { grid-column: 2; } }
+    @media (max-width: 640px) { .brand-row { align-items: flex-start; flex-direction: column; margin-bottom: 42px; } form { flex-direction: column; } button { min-height: 52px; } dl { grid-template-columns: 1fr; gap: 4px; } dd { margin-bottom: 10px; } .output { grid-template-columns: 52px 1fr; } .output span:last-child { grid-column: 2; } }
   </style>
 </head>
 <body>
   <main>
-    <div class="brand"><div class="mark">W</div><strong>WOAHBIT</strong></div>
+    <div class="brand-row">
+      <div class="brand"><div class="mark">W</div><strong>WOAHBIT</strong></div>
+      <div id="node-status" class="node"><span class="dot"></span><span>Checking BCH node…</span></div>
+    </div>
     <h1>Read the chain.<br><span class="accent">Verify the token.</span></h1>
     <p class="lede">A read-only Bitcoin Cash + Simple Ledger Protocol explorer. Paste a BCH transaction ID to validate its SLP Type 1 ancestry and inspect token outputs.</p>
     <section class="panel">
@@ -58,8 +68,24 @@ export function renderExplorerPage(): string {
     const input = document.getElementById('txid');
     const result = document.getElementById('result');
     const submit = document.getElementById('submit');
+    const nodeStatus = document.getElementById('node-status');
 
     const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
+
+    async function loadNodeStatus() {
+      try {
+        const response = await fetch('/node-status', { headers: { accept: 'application/json' } });
+        const data = await response.json();
+        if (!response.ok || !data.connected) throw new Error(data.message || 'Node unavailable');
+        const lag = Math.max(0, Number(data.headers || 0) - Number(data.blocks || 0));
+        const syncText = data.initialBlockDownload || lag > 2 ? 'syncing' : 'synced';
+        nodeStatus.className = 'node connected';
+        nodeStatus.innerHTML = '<span class="dot"></span><span>BCH ' + escapeHtml(data.chain) + ' · ' + escapeHtml(data.blocks) + ' · ' + syncText + '</span>';
+      } catch {
+        nodeStatus.className = 'node disconnected';
+        nodeStatus.innerHTML = '<span class="dot"></span><span>BCH node offline</span>';
+      }
+    }
 
     function render(data) {
       const statusClass = data.validSlp ? 'valid' : 'invalid';
@@ -96,6 +122,8 @@ export function renderExplorerPage(): string {
         submit.textContent = 'Validate';
       }
     });
+
+    void loadNodeStatus();
   </script>
 </body>
 </html>`;
