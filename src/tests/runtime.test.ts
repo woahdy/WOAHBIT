@@ -9,6 +9,7 @@ test('builds server config from environment variables', () => {
     WOAHBIT_RPC_PASSWORD: 'rpcpass',
     WOAHBIT_RPC_TIMEOUT_MS: '12000',
     WOAHBIT_FALLBACK_API_URL: 'https://bch.fullstack.cash/v6/',
+    WOAHBIT_WALLET_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
     PORT: '8080',
   });
 
@@ -18,6 +19,7 @@ test('builds server config from environment variables', () => {
     rpcPassword: 'rpcpass',
     rpcTimeoutMs: 12000,
     fallbackApiUrl: 'https://bch.fullstack.cash/v6/',
+    walletVaultReady: true,
     port: 8080,
   });
 });
@@ -30,6 +32,7 @@ test('uses safe runtime defaults', () => {
   assert.equal(config.port, 3000);
   assert.equal(config.rpcTimeoutMs, 15000);
   assert.equal(config.fallbackApiUrl, undefined);
+  assert.equal(config.walletVaultReady, false);
 });
 
 test('ignores an empty fallback API URL', () => {
@@ -66,4 +69,14 @@ test('rejects invalid RPC timeouts', () => {
       /WOAHBIT_RPC_TIMEOUT_MS must be an integer between 1000 and 120000/,
     );
   }
+});
+
+test('rejects an invalid wallet encryption key at startup', () => {
+  assert.throws(
+    () => serverConfigFromEnvironment({
+      WOAHBIT_RPC_URL: 'http://localhost:8332',
+      WOAHBIT_WALLET_ENCRYPTION_KEY: 'not-a-valid-key',
+    }),
+    /WOAHBIT_WALLET_ENCRYPTION_KEY must be a base64-encoded 32-byte key/,
+  );
 });
