@@ -4,6 +4,7 @@ export * from './slp/validator.js';
 export * from './bch/adapter.js';
 export * from './bch/fullstack-rest.js';
 export * from './wallet/vault.js';
+export * from './wallet/storage.js';
 export * from './app/validation-service.js';
 export * from './app/explorer-ui.js';
 export * from './app/wallet-ui.js';
