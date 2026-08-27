@@ -6,6 +6,7 @@ import type { BchTransaction } from '../index.js';
 const genesisTxid = 'aa'.repeat(32);
 const sendTxid = 'bb'.repeat(32);
 const burnTxid = 'cc'.repeat(32);
+const forwardSpendTxid = 'dd'.repeat(32);
 
 function push(data: Uint8Array): Uint8Array {
   assert.ok(data.length <= 75);
@@ -93,6 +94,21 @@ test('marks a token output spent even when the spending transaction is not valid
   const recovered = await index.indexSeed(burnTxid);
   assert.equal(recovered?.validSlp, false);
   assert.equal(index.getOutput(genesisTxid, 1)?.spentBy, burnTxid);
+});
+
+test('refreshes indexed outputs using chain-wide spend discovery', async () => {
+  const genesis = tx(genesisTxid, genesisScript(1000n), [], 2);
+  const map = new Map([[genesisTxid, genesis]]);
+  const index = new SlpRecoveryIndex({ getTransaction: async (txid) => map.get(txid) ?? null });
+  await index.indexSeed(genesisTxid);
+
+  assert.equal(index.getOutput(genesisTxid, 1)?.spentBy, null);
+  await index.refreshSpends({
+    getSpend: async (outpoint) => outpoint.txid === genesisTxid && outpoint.vout === 1
+      ? { txid: forwardSpendTxid, vin: 0 }
+      : null,
+  });
+  assert.equal(index.getOutput(genesisTxid, 1)?.spentBy, forwardSpendTxid);
 });
 
 test('rejects malformed seed transaction ids before resolver lookup', async () => {
