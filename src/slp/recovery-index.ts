@@ -1,5 +1,6 @@
 import type { BchTransaction } from './types.js';
 import { SlpValidator, type ParentResolver } from './validator.js';
+import type { SpendDiscoveryProvider } from './spend-discovery.js';
 
 export interface IndexedSlpTransaction {
   txid: string;
@@ -45,8 +46,7 @@ function toHex(bytes: Uint8Array): string {
  * The index walks transaction ancestry through ParentResolver, validates SLP
  * independently, and records token outputs plus spends observed inside the
  * recovered graph. A null spentBy means "not spent by a transaction indexed
- * here"; it is deliberately not presented as proof that the output is globally
- * unspent. Forward-chain/UTXO discovery belongs to a chain index provider.
+ * here" until refreshSpends() is called with a forward-chain provider.
  */
 export class SlpRecoveryIndex {
   private readonly validator: SlpValidator;
@@ -70,6 +70,14 @@ export class SlpRecoveryIndex {
     this.seeds.add(normalized);
     await this.indexTransaction(transaction, new Set<string>());
     return this.transactions.get(normalized) ?? null;
+  }
+
+  /** Refresh known SLP outputs against a chain-wide spend index. */
+  async refreshSpends(provider: SpendDiscoveryProvider): Promise<void> {
+    await Promise.all([...this.outputs.values()].map(async (output) => {
+      const spend = await provider.getSpend({ txid: output.txid, vout: output.vout });
+      output.spentBy = spend ? normalizeTxid(spend.txid) : null;
+    }));
   }
 
   getOutput(txid: string, vout: number): IndexedSlpOutput | null {
