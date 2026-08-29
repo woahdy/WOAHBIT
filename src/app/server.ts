@@ -1,8 +1,10 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { BchJsonRpcResolver } from '../bch/adapter.js';
 import { FallbackParentResolver, FullStackRestResolver } from '../bch/fullstack-rest.js';
+import { PaytacaSpendDiscoveryProvider } from '../bch/paytaca-spend.js';
 import { renderExplorerPage } from './explorer-ui.js';
 import { renderWalletPage } from './wallet-ui.js';
+import { WoahbitRecoveryService } from './recovery-service.js';
 import { WoahbitValidationService } from './validation-service.js';
 
 export interface WoahbitServerConfig {
@@ -11,6 +13,7 @@ export interface WoahbitServerConfig {
   rpcPassword?: string;
   rpcTimeoutMs?: number;
   fallbackApiUrl?: string;
+  spendDiscoveryApiUrl?: string;
   walletVaultReady?: boolean;
   port?: number;
 }
@@ -52,6 +55,11 @@ export function createWoahbitServer(config: WoahbitServerConfig) {
       )
     : rpcResolver;
   const service = new WoahbitValidationService(resolver);
+  const spendProvider = new PaytacaSpendDiscoveryProvider({
+    baseUrl: config.spendDiscoveryApiUrl,
+    timeoutMs: config.rpcTimeoutMs,
+  });
+  const recoveryService = new WoahbitRecoveryService(resolver, spendProvider);
   const walletVaultReady = config.walletVaultReady === true;
 
   return createServer(async (request, response) => {
@@ -100,6 +108,13 @@ export function createWoahbitServer(config: WoahbitServerConfig) {
             fallbackConfigured: Boolean(config.fallbackApiUrl),
           });
         }
+        return;
+      }
+
+      const recoveryMatch = path.match(/^\/recover\/([0-9a-fA-F]{64})$/);
+      if (recoveryMatch?.[1]) {
+        const result = await recoveryService.recoverTransaction(recoveryMatch[1]);
+        json(response, result.found ? 200 : 404, result);
         return;
       }
 
