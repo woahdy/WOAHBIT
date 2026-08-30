@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { BchJsonRpcResolver } from '../bch/adapter.js';
 import { FallbackParentResolver, FullStackRestResolver } from '../bch/fullstack-rest.js';
+import { PaytacaTransactionResolver } from '../bch/paytaca-transaction.js';
 import { PaytacaSpendDiscoveryProvider } from '../bch/paytaca-spend.js';
 import { renderExplorerPage } from './explorer-ui.js';
 import { renderWalletPage } from './wallet-ui.js';
@@ -48,12 +49,19 @@ export function createWoahbitServer(config: WoahbitServerConfig) {
     password: config.rpcPassword,
     timeoutMs: config.rpcTimeoutMs,
   });
+  const paytacaResolver = new PaytacaTransactionResolver({
+    baseUrl: config.spendDiscoveryApiUrl,
+    timeoutMs: config.rpcTimeoutMs,
+  });
   const resolver = config.fallbackApiUrl
     ? new FallbackParentResolver(
-        rpcResolver,
-        new FullStackRestResolver({ baseUrl: config.fallbackApiUrl, timeoutMs: config.rpcTimeoutMs }),
+        new FallbackParentResolver(
+          rpcResolver,
+          new FullStackRestResolver({ baseUrl: config.fallbackApiUrl, timeoutMs: config.rpcTimeoutMs }),
+        ),
+        paytacaResolver,
       )
-    : rpcResolver;
+    : new FallbackParentResolver(rpcResolver, paytacaResolver);
   const service = new WoahbitValidationService(resolver);
   const spendProvider = new PaytacaSpendDiscoveryProvider({
     baseUrl: config.spendDiscoveryApiUrl,
@@ -105,7 +113,7 @@ export function createWoahbitServer(config: WoahbitServerConfig) {
             connected: false,
             error: 'BCH node unavailable',
             message: error instanceof Error ? error.message : 'Unknown error',
-            fallbackConfigured: Boolean(config.fallbackApiUrl),
+            fallbackConfigured: true,
           });
         }
         return;
