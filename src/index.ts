@@ -7,6 +7,7 @@ export * from './bch/adapter.js';
 export * from './bch/fullstack-rest.js';
 export * from './bch/paytaca-transaction.js';
 export * from './bch/paytaca-spend.js';
+export * from './bch/paytaca-address-history.js';
 export * from './wallet/vault.js';
 export * from './wallet/storage.js';
 export * from './app/validation-service.js';
