@@ -31,3 +31,14 @@ test('shows vault encryption readiness without enabling sensitive actions', () =
   assert.match(page, /Import company recovery phrase/);
   assert.match(page, /button class="secondary wide" disabled/);
 });
+
+test('adds a read-only SLP recovery lookup that accepts public txids only', () => {
+  const page = renderWalletPage();
+
+  assert.match(page, /Read-only recovery/);
+  assert.match(page, /64-character BCH transaction ID/);
+  assert.match(page, /fetch\('\/recover\/'/);
+  assert.match(page, /\^\[0-9a-fA-F\]\{64\}\$/);
+  assert.match(page, /No keys, seed phrases, or signing data/);
+  assert.doesNotMatch(page, /type="password"/);
+});

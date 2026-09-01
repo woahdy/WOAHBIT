@@ -31,6 +31,7 @@
     .actions { grid-column: span 5; }
     .assets { grid-column: span 7; }
     .apps { grid-column: span 5; }
+    .inspector { grid-column: 1 / -1; }
     .eyebrow { color: #6f907d; font-size: .74rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
     .amount { margin: 20px 0 3px; font-size: clamp(2.4rem, 6vw, 4.4rem); font-weight: 800; letter-spacing: -.06em; color: #dffff0; }
     .fiat { color: #6f907d; }
@@ -49,10 +50,21 @@
     .steps { display: grid; gap: 12px; margin-top: 17px; }
     .step { display: grid; grid-template-columns: 27px 1fr; gap: 10px; color: #88a595; font-size: .84rem; line-height: 1.45; }
     .step span:first-child { width: 25px; height: 25px; display: grid; place-items: center; border-radius: 50%; background: #ffffff09; color: #5cf0a8; font-weight: 800; }
+    .lookup-form { display: grid; grid-template-columns: 1fr auto; gap: 10px; margin-top: 17px; }
+    .lookup-form input { width: 100%; min-height: 48px; border-radius: 12px; border: 1px solid #ffffff16; background: #050806; color: #dffff0; padding: 0 14px; font: inherit; outline: none; }
+    .lookup-form input:focus { border-color: #5cf0a866; box-shadow: 0 0 0 3px #5cf0a812; }
+    .result { margin-top: 14px; display: none; border: 1px solid #ffffff12; border-radius: 14px; overflow: hidden; }
+    .result.show { display: block; }
+    .result-row { display: grid; grid-template-columns: 150px 1fr; gap: 12px; padding: 11px 13px; border-top: 1px solid #ffffff0d; }
+    .result-row:first-child { border-top: 0; }
+    .result-key { color: #6f907d; font-size: .8rem; }
+    .result-value { color: #dffff0; font-size: .82rem; overflow-wrap: anywhere; }
+    .status { min-height: 1.4em; margin-top: 10px; color: #88a595; font-size: .82rem; }
+    .status.error { color: #ffb4a9; }
     .repo-link { color: #7df4b7; text-decoration: none; }
     footer { margin-top: 20px; color: #4f6b5b; font-size: .76rem; }
     @media (max-width: 850px) { .layout { grid-template-columns: 1fr; } aside { border-right: 0; border-bottom: 1px solid #ffffff12; } nav { grid-template-columns: repeat(3, 1fr); } .security { display: none; } main { padding: 24px 16px 40px; } .balance, .actions, .assets, .apps { grid-column: 1 / -1; } }
-    @media (max-width: 520px) { nav { grid-template-columns: 1fr 1fr; } .topbar { align-items: flex-start; flex-direction: column; } }
+    @media (max-width: 520px) { nav { grid-template-columns: 1fr 1fr; } .topbar { align-items: flex-start; flex-direction: column; } .lookup-form { grid-template-columns: 1fr; } .result-row { grid-template-columns: 1fr; gap: 4px; } }
   </style>
 </head>
 <body>
@@ -62,23 +74,24 @@
       <nav aria-label="Wallet navigation">
         <a class="active" href="#wallet">Wallet</a>
         <a href="#assets">SLP Assets</a>
+        <a href="#inspector">TX Inspector</a>
         <a href="#activity">Activity</a>
         <a href="#apps">Connected Apps</a>
         <a href="https://github.com/woahdy/WOAHBIT">GitHub</a>
       </nav>
-      <div class="security">Static GitHub Pages preview only. Never paste recovery phrases, private keys, wallet encryption keys, or other secrets into this page, GitHub, screenshots, logs, or chat.</div>
+      <div class="security">Public transaction IDs only. Never paste recovery phrases, private keys, wallet encryption keys, or other secrets into this page, GitHub, screenshots, logs, or chat.</div>
     </aside>
     <main id="wallet">
       <header class="topbar">
         <div><h1>WOAHBIT Wallet</h1><p class="sub">BCH + SLP company treasury interface</p></div>
-        <div class="preview">● GitHub Pages preview</div>
+        <div class="preview">● Read-only web wallet</div>
       </header>
       <div class="grid">
         <section class="card balance">
           <div class="eyebrow">Total portfolio</div>
           <div class="amount">— BCH</div>
-          <div class="fiat">Live balances require the WOAHBIT backend.</div>
-          <div class="notice">This page is intentionally read-only. GitHub Pages hosts the interface; recovery indexing, BCH transaction resolution, spend discovery, vault storage, signing, and broadcasting stay on the protected server.</div>
+          <div class="fiat">Treasury balances require the WOAHBIT backend.</div>
+          <div class="notice">The public site stays read-only. Transaction inspection is enabled below; recovery indexing, vault storage, signing, and broadcasting remain isolated from GitHub Pages.</div>
         </section>
         <section class="card actions">
           <div class="eyebrow">Wallet actions</div>
@@ -93,26 +106,116 @@
           <div class="eyebrow">Assets</div>
           <h2>BCH and SLP balances</h2>
           <div class="asset-row"><div class="coin">B</div><div><strong>Bitcoin Cash</strong><br><small>BCH</small></div><div class="asset-value">Backend not connected</div></div>
-          <div class="asset-row"><div class="coin">S</div><div><strong>Simple Ledger Protocol</strong><br><small>SLP Type 1 tokens</small></div><div class="asset-value">Read-only preview</div></div>
+          <div class="asset-row"><div class="coin">S</div><div><strong>Simple Ledger Protocol</strong><br><small>SLP Type 1 tokens</small></div><div class="asset-value">Recovery service ready</div></div>
         </section>
         <section id="apps" class="card apps">
           <div class="eyebrow">Deployment</div>
           <h2>Pages + WOAHBIT backend</h2>
           <div class="steps">
-            <div class="step"><span>1</span><div>GitHub Pages serves this static wallet interface over HTTPS.</div></div>
-            <div class="step"><span>2</span><div>The Node backend remains separate and handles read-only BCH/SLP services.</div></div>
-            <div class="step"><span>3</span><div>Next, connect the Pages interface to the deployed backend with a restricted API URL.</div></div>
-            <div class="step"><span>4</span><div>Keep signing, secret import, and broadcasting disabled until the wallet security flow is ready.</div></div>
+            <div class="step"><span>1</span><div>GitHub Pages serves the wallet interface over HTTPS.</div></div>
+            <div class="step"><span>2</span><div>Public BCH transaction inspection works without wallet secrets.</div></div>
+            <div class="step"><span>3</span><div>Next, connect the deployed WOAHBIT recovery API for validated SLP history.</div></div>
+            <div class="step"><span>4</span><div>Signing, secret import, and broadcasting stay disabled.</div></div>
+          </div>
+        </section>
+        <section id="inspector" class="card inspector">
+          <div class="eyebrow">Read-only functionality</div>
+          <h2>BCH Transaction Inspector</h2>
+          <div class="notice">Paste a public 64-character BCH transaction ID. WOAHBIT will query the public BCH explorer used by the backend. Do not paste a seed phrase or private key.</div>
+          <form id="tx-form" class="lookup-form" novalidate>
+            <input id="txid" name="txid" autocomplete="off" spellcheck="false" inputmode="text" maxlength="64" placeholder="64-character BCH transaction ID" aria-label="BCH transaction ID" />
+            <button id="lookup" class="primary" type="submit">Inspect transaction</button>
+          </form>
+          <div id="tx-status" class="status" role="status" aria-live="polite"></div>
+          <div id="tx-result" class="result" aria-live="polite">
+            <div class="result-row"><div class="result-key">Transaction ID</div><div id="result-txid" class="result-value"></div></div>
+            <div class="result-row"><div class="result-key">Inputs</div><div id="result-inputs" class="result-value"></div></div>
+            <div class="result-row"><div class="result-key">Outputs</div><div id="result-outputs" class="result-value"></div></div>
+            <div class="result-row"><div class="result-key">Confirmations</div><div id="result-confirmations" class="result-value"></div></div>
+            <div class="result-row"><div class="result-key">Block</div><div id="result-block" class="result-value"></div></div>
           </div>
         </section>
         <section id="activity" class="card" style="grid-column:1/-1">
           <div class="eyebrow">Activity</div>
-          <h2>No live wallet activity on the static site</h2>
-          <div class="notice">Once the read-only API connection is configured, public transaction and SLP recovery information can be displayed here without exposing private keys.</div>
+          <h2>Read-only chain activity</h2>
+          <div class="notice">Successful inspections appear above. Validated SLP recovery history will plug into this area once the WOAHBIT backend has a public HTTPS deployment.</div>
         </section>
       </div>
-      <footer>WOAHBIT GitHub Pages preview · <a class="repo-link" href="https://github.com/woahdy/WOAHBIT">View source</a> · Signing and broadcasting disabled</footer>
+      <footer>WOAHBIT · <a class="repo-link" href="https://github.com/woahdy/WOAHBIT">View source</a> · Signing and broadcasting disabled</footer>
     </main>
   </div>
+  <script>
+    (() => {
+      const form = document.getElementById('tx-form');
+      const input = document.getElementById('txid');
+      const button = document.getElementById('lookup');
+      const status = document.getElementById('tx-status');
+      const result = document.getElementById('tx-result');
+      const values = {
+        txid: document.getElementById('result-txid'),
+        inputs: document.getElementById('result-inputs'),
+        outputs: document.getElementById('result-outputs'),
+        confirmations: document.getElementById('result-confirmations'),
+        block: document.getElementById('result-block')
+      };
+
+      function setStatus(message, isError = false) {
+        status.textContent = message;
+        status.classList.toggle('error', isError);
+      }
+
+      function candidatePayload(payload) {
+        if (payload && typeof payload === 'object' && !Array.isArray(payload) && payload.result && typeof payload.result === 'object') return payload.result;
+        return payload;
+      }
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        result.classList.remove('show');
+        const txid = input.value.trim().toLowerCase();
+        if (!/^[0-9a-f]{64}$/.test(txid)) {
+          setStatus('Enter exactly 64 hexadecimal characters from a public BCH transaction ID.', true);
+          return;
+        }
+
+        button.disabled = true;
+        setStatus('Looking up transaction…');
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 15000);
+          let response;
+          try {
+            response = await fetch('https://bchexplorer.info/api/bch/tx/' + encodeURIComponent(txid), {
+              headers: { accept: 'application/json' },
+              signal: controller.signal
+            });
+          } finally {
+            clearTimeout(timer);
+          }
+          if (response.status === 404) throw new Error('Transaction not found.');
+          if (!response.ok) throw new Error('Explorer returned HTTP ' + response.status + '.');
+          const payload = candidatePayload(await response.json());
+          if (!payload || typeof payload !== 'object') throw new Error('Explorer returned an invalid response.');
+          const returnedTxid = String(payload.txid || payload.hash || '').toLowerCase();
+          if (returnedTxid && returnedTxid !== txid) throw new Error('Explorer returned a mismatched transaction ID.');
+
+          const vin = Array.isArray(payload.vin) ? payload.vin : Array.isArray(payload.inputs) ? payload.inputs : [];
+          const vout = Array.isArray(payload.vout) ? payload.vout : Array.isArray(payload.outputs) ? payload.outputs : [];
+          values.txid.textContent = returnedTxid || txid;
+          values.inputs.textContent = String(vin.length);
+          values.outputs.textContent = String(vout.length);
+          values.confirmations.textContent = payload.confirmations == null ? 'Unknown' : String(payload.confirmations);
+          values.block.textContent = payload.blockhash ? String(payload.blockhash) : (payload.block_height ?? payload.height ?? 'Unconfirmed / unknown');
+          result.classList.add('show');
+          setStatus('Transaction loaded from the public BCH explorer. Read-only inspection complete.');
+        } catch (error) {
+          const message = error && error.name === 'AbortError' ? 'Lookup timed out. Try again.' : (error instanceof Error ? error.message : 'Lookup failed.');
+          setStatus(message + ' No wallet secrets were sent.', true);
+        } finally {
+          button.disabled = false;
+        }
+      });
+    })();
+  </script>
 </body>
 </html>

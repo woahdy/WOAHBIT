@@ -28,7 +28,6 @@ export function renderWalletPage(options: WalletPageOptions = {}): string {
     nav { display: grid; gap: 7px; }
     nav a { padding: 12px 13px; border-radius: 11px; color: #8da99a; text-decoration: none; font-size: .92rem; }
     nav a.active { color: #64f0ab; background: #54e7a313; border: 1px solid #54e7a31f; }
-    nav a:hover { color: #dffff0; background: #ffffff08; }
     .security { margin-top: 28px; padding: 14px; border: 1px solid #ffffff12; border-radius: 14px; background: #ffffff05; color: #6f907d; font-size: .76rem; line-height: 1.5; }
     main { min-width: 0; padding: 34px; background: radial-gradient(circle at 45% -10%, #173b2c 0%, #09130e 32%, #050806 66%); }
     .topbar { display: flex; justify-content: space-between; gap: 18px; align-items: center; margin-bottom: 28px; }
@@ -41,10 +40,11 @@ export function renderWalletPage(options: WalletPageOptions = {}): string {
     .actions { grid-column: span 5; }
     .assets { grid-column: span 7; }
     .apps { grid-column: span 5; }
+    .recovery { grid-column: 1 / -1; }
     .eyebrow { color: #6f907d; font-size: .74rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
     .amount { margin: 20px 0 3px; font-size: clamp(2.4rem, 6vw, 4.4rem); font-weight: 800; letter-spacing: -.06em; color: #dffff0; }
-    .fiat { color: #6f907d; }
-    .notice { margin-top: 22px; padding: 12px 13px; border: 1px solid #ffffff12; border-radius: 12px; background: #ffffff05; color: #88a595; font-size: .82rem; }
+    .fiat, small { color: #6f907d; }
+    .notice { margin-top: 18px; padding: 12px 13px; border: 1px solid #ffffff12; border-radius: 12px; background: #ffffff05; color: #88a595; font-size: .82rem; line-height: 1.5; }
     .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px; }
     button { min-height: 48px; border: 0; border-radius: 12px; padding: 0 14px; font: inherit; font-weight: 800; }
     button.primary { color: #04150c; background: #5cf0a8; }
@@ -54,14 +54,20 @@ export function renderWalletPage(options: WalletPageOptions = {}): string {
     h2 { margin: 8px 0 0; font-size: 1.15rem; }
     .asset-row { display: grid; grid-template-columns: 42px 1fr auto; gap: 12px; align-items: center; margin-top: 17px; padding-top: 17px; border-top: 1px solid #ffffff0f; }
     .coin { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; background: #54e7a318; color: #5cf0a8; font-weight: 900; }
-    .asset-row small { color: #6f907d; }
     .asset-value { text-align: right; color: #88a595; }
     .steps { display: grid; gap: 12px; margin-top: 17px; }
     .step { display: grid; grid-template-columns: 27px 1fr; gap: 10px; color: #88a595; font-size: .84rem; line-height: 1.45; }
     .step span:first-child { width: 25px; height: 25px; display: grid; place-items: center; border-radius: 50%; background: #ffffff09; color: #5cf0a8; font-weight: 800; }
+    .recovery-form { display: grid; grid-template-columns: 1fr auto; gap: 10px; margin-top: 16px; }
+    input { min-width: 0; min-height: 48px; border-radius: 12px; border: 1px solid #ffffff18; background: #050806; color: #f4fff9; padding: 0 14px; font: inherit; }
+    input:focus { outline: 2px solid #5cf0a855; border-color: #5cf0a8; }
+    .results { display: grid; gap: 10px; margin-top: 14px; }
+    .result-row { display: grid; grid-template-columns: 150px 1fr; gap: 12px; padding: 11px 0; border-top: 1px solid #ffffff0f; }
+    .result-row span:first-child { color: #6f907d; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
     footer { margin-top: 20px; color: #4f6b5b; font-size: .76rem; }
     @media (max-width: 850px) { .layout { grid-template-columns: 1fr; } aside { border-right: 0; border-bottom: 1px solid #ffffff12; } nav { grid-template-columns: repeat(3, 1fr); } .security { display: none; } main { padding: 24px 16px 40px; } .balance, .actions, .assets, .apps { grid-column: 1 / -1; } }
-    @media (max-width: 520px) { nav { grid-template-columns: 1fr 1fr; } .topbar { align-items: flex-start; flex-direction: column; } }
+    @media (max-width: 560px) { .topbar { align-items: flex-start; flex-direction: column; } .recovery-form { grid-template-columns: 1fr; } .result-row { grid-template-columns: 1fr; gap: 4px; } }
   </style>
 </head>
 <body>
@@ -71,11 +77,12 @@ export function renderWalletPage(options: WalletPageOptions = {}): string {
       <nav aria-label="Wallet navigation">
         <a class="active" href="/wallet">Wallet</a>
         <a href="/wallet#assets">SLP Assets</a>
+        <a href="/wallet#recovery">Recovery</a>
         <a href="/wallet#activity">Activity</a>
         <a href="/wallet#apps">Connected Apps</a>
         <a href="/">Explorer</a>
       </nav>
-      <div class="security">Company-only wallet. Recovery material is encrypted and must never be pasted into chat, GitHub, screenshots, or logs.</div>
+      <div class="security">Company-only wallet. Never enter recovery phrases or private keys here. The recovery search accepts public BCH transaction IDs only.</div>
     </aside>
     <main>
       <header class="topbar">
@@ -102,22 +109,88 @@ export function renderWalletPage(options: WalletPageOptions = {}): string {
           <div class="eyebrow">Assets</div>
           <h2>BCH and SLP balances</h2>
           <div class="asset-row"><div class="coin">B</div><div><strong>Bitcoin Cash</strong><br><small>BCH</small></div><div class="asset-value">Not connected</div></div>
-          <div class="asset-row"><div class="coin">S</div><div><strong>Simple Ledger Protocol</strong><br><small>SLP Type 1 tokens</small></div><div class="asset-value">Not indexed</div></div>
+          <div class="asset-row"><div class="coin">S</div><div><strong>Simple Ledger Protocol</strong><br><small>SLP Type 1 tokens</small></div><div class="asset-value">Recovery search ready</div></div>
         </section>
         <section id="apps" class="card apps">
           <div class="eyebrow">Setup progress</div>
           <h2>Badger-style capabilities</h2>
           <div class="steps">
             <div class="step"><span>1</span><div>${vaultLabel}.</div></div>
-            <div class="step"><span>2</span><div>Protected local import and recovery verification next.</div></div>
+            <div class="step"><span>2</span><div>Read-only SLP recovery lookup available.</div></div>
             <div class="step"><span>3</span><div>Receive address and read-only BCH/SLP balances.</div></div>
             <div class="step"><span>4</span><div>Reviewed BCH/SLP sending and burn protection.</div></div>
           </div>
+        </section>
+        <section id="recovery" class="card recovery">
+          <div class="eyebrow">Read-only recovery</div>
+          <h2>Recover SLP history from a public transaction ID</h2>
+          <form id="recovery-form" class="recovery-form">
+            <input id="recovery-txid" name="txid" inputmode="text" autocomplete="off" spellcheck="false" maxlength="64" placeholder="64-character BCH transaction ID" aria-label="BCH transaction ID" />
+            <button id="recovery-submit" class="primary" type="submit">Recover SLP</button>
+          </form>
+          <div id="recovery-status" class="notice">Public transaction IDs only. No keys, seed phrases, or signing data are requested or transmitted.</div>
+          <div id="recovery-results" class="results" aria-live="polite"></div>
         </section>
       </div>
       <footer>WOAHBIT wallet preview · Signing and broadcasting remain disabled</footer>
     </main>
   </div>
+  <script>
+    (function () {
+      var form = document.getElementById('recovery-form');
+      var input = document.getElementById('recovery-txid');
+      var submit = document.getElementById('recovery-submit');
+      var status = document.getElementById('recovery-status');
+      var results = document.getElementById('recovery-results');
+      var txidPattern = /^[0-9a-fA-F]{64}$/;
+
+      function addRow(label, value, mono) {
+        var row = document.createElement('div');
+        row.className = 'result-row';
+        var key = document.createElement('span');
+        key.textContent = label;
+        var val = document.createElement('span');
+        val.textContent = value;
+        if (mono) val.className = 'mono';
+        row.appendChild(key);
+        row.appendChild(val);
+        results.appendChild(row);
+      }
+
+      form.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        results.replaceChildren();
+        var txid = input.value.trim();
+        if (!txidPattern.test(txid)) {
+          status.textContent = 'Enter exactly 64 hexadecimal characters. This field is for a public BCH transaction ID only.';
+          return;
+        }
+
+        submit.disabled = true;
+        status.textContent = 'Reading BCH and SLP recovery data…';
+        try {
+          var response = await fetch('/recover/' + encodeURIComponent(txid), { headers: { accept: 'application/json' } });
+          var data = await response.json();
+          if (!response.ok) {
+            status.textContent = data && data.error ? String(data.error) : 'Recovery lookup did not return a transaction.';
+            return;
+          }
+
+          status.textContent = data.validSlp ? 'Valid SLP history recovered.' : 'Transaction recovered, but it is not a valid SLP continuation.';
+          addRow('Seed transaction', String(data.seed || txid), true);
+          addRow('SLP status', data.validSlp ? 'Valid' : 'Invalid / non-SLP', false);
+          addRow('Transaction type', String(data.transactionType || 'Unknown'), false);
+          addRow('Token ID', String(data.tokenId || 'None'), true);
+          addRow('Indexed transactions', String(Array.isArray(data.transactions) ? data.transactions.length : 0), false);
+          addRow('Token outputs', String(Array.isArray(data.outputs) ? data.outputs.length : 0), false);
+        } catch (error) {
+          status.textContent = 'Recovery service unavailable. The wallet remains read-only and no secret material was sent.';
+        } finally {
+          submit.disabled = false;
+        }
+      });
+    })();
+  </script>
 </body>
 </html>`;
 }
