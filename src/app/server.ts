@@ -1,8 +1,11 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { BchJsonRpcResolver } from '../bch/adapter.js';
+import { decodeCashAddress } from '../bch/cashaddr.js';
 import { FallbackParentResolver, FullStackRestResolver } from '../bch/fullstack-rest.js';
+import { PaytacaAddressHistoryProvider } from '../bch/paytaca-address-history.js';
 import { PaytacaTransactionResolver } from '../bch/paytaca-transaction.js';
 import { PaytacaSpendDiscoveryProvider } from '../bch/paytaca-spend.js';
+import { SlpAddressBalanceService } from './address-balance-service.js';
 import { renderExplorerPage } from './explorer-ui.js';
 import { renderWalletPage } from './wallet-ui.js';
 import { WoahbitRecoveryService } from './recovery-service.js';
@@ -67,7 +70,12 @@ export function createWoahbitServer(config: WoahbitServerConfig) {
     baseUrl: config.spendDiscoveryApiUrl,
     timeoutMs: config.rpcTimeoutMs,
   });
+  const historyProvider = new PaytacaAddressHistoryProvider({
+    baseUrl: config.spendDiscoveryApiUrl,
+    timeoutMs: config.rpcTimeoutMs,
+  });
   const recoveryService = new WoahbitRecoveryService(resolver, spendProvider);
+  const addressBalanceService = new SlpAddressBalanceService(resolver, historyProvider, spendProvider);
   const walletVaultReady = config.walletVaultReady === true;
 
   return createServer(async (request, response) => {
@@ -119,6 +127,28 @@ export function createWoahbitServer(config: WoahbitServerConfig) {
         return;
       }
 
+      const balanceMatch = path.match(/^\/balances\/([^/]+)$/);
+      if (balanceMatch?.[1]) {
+        let address: string;
+        try {
+          address = decodeURIComponent(balanceMatch[1]);
+          const decoded = decodeCashAddress(address);
+          if (decoded.prefix !== 'bitcoincash') {
+            json(response, 400, { error: 'Only Bitcoin Cash mainnet CashAddr addresses are supported' });
+            return;
+          }
+        } catch (error) {
+          json(response, 400, {
+            error: 'Invalid CashAddr address',
+            message: error instanceof Error ? error.message : 'Invalid address',
+          });
+          return;
+        }
+        const result = await addressBalanceService.getBalances(address);
+        json(response, 200, result);
+        return;
+      }
+
       const recoveryMatch = path.match(/^\/recover\/([0-9a-fA-F]{64})$/);
       if (recoveryMatch?.[1]) {
         const result = await recoveryService.recoverTransaction(recoveryMatch[1]);
@@ -136,7 +166,7 @@ export function createWoahbitServer(config: WoahbitServerConfig) {
       json(response, 404, { error: 'Not found' });
     } catch (error) {
       json(response, 500, {
-        error: 'Validation service error',
+        error: 'Read-only service error',
         message: error instanceof Error ? error.message : 'Unknown error',
       });
     }
