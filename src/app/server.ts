@@ -9,6 +9,7 @@ import { SlpAddressBalanceService } from './address-balance-service.js';
 import { renderExplorerPage } from './explorer-ui.js';
 import { renderWalletPage } from './wallet-ui.js';
 import { WoahbitRecoveryService } from './recovery-service.js';
+import { SlpTokenMetadataService } from './token-metadata-service.js';
 import { WoahbitValidationService } from './validation-service.js';
 
 export interface WoahbitServerConfig {
@@ -76,6 +77,7 @@ export function createWoahbitServer(config: WoahbitServerConfig) {
   });
   const recoveryService = new WoahbitRecoveryService(resolver, spendProvider);
   const addressBalanceService = new SlpAddressBalanceService(resolver, historyProvider, spendProvider);
+  const tokenMetadataService = new SlpTokenMetadataService(resolver);
   const walletVaultReady = config.walletVaultReady === true;
 
   return createServer(async (request, response) => {
@@ -146,6 +148,19 @@ export function createWoahbitServer(config: WoahbitServerConfig) {
         }
         const result = await addressBalanceService.getBalances(address);
         json(response, 200, result);
+        return;
+      }
+
+      const tokenMatch = path.match(/^\/tokens\/([^/]+)$/);
+      if (tokenMatch?.[1]) {
+        const tokenId = decodeURIComponent(tokenMatch[1]);
+        const result = await tokenMetadataService.getTokenMetadata(tokenId);
+        const status = result.validSlpGenesis
+          ? 200
+          : result.reason === 'Invalid token id'
+            ? 400
+            : result.found ? 422 : 404;
+        json(response, status, result);
         return;
       }
 

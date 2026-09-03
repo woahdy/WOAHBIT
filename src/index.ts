@@ -14,6 +14,7 @@ export * from './wallet/storage.js';
 export * from './app/validation-service.js';
 export * from './app/recovery-service.js';
 export * from './app/address-balance-service.js';
+export * from './app/token-metadata-service.js';
 export * from './app/explorer-ui.js';
 export * from './app/wallet-ui.js';
 export * from './app/server.js';
