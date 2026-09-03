@@ -29,10 +29,10 @@ function u64(value: bigint): Uint8Array {
   return out;
 }
 
-function genesisScript(quantity: bigint): Uint8Array {
+function genesisScript(quantity: bigint, decimals = 0): Uint8Array {
   const fields = [
     hex('534c5000'), Uint8Array.from([1]), text('GENESIS'), text('WOAH'), text('WOAHBIT'),
-    new Uint8Array(), new Uint8Array(), Uint8Array.from([0]), new Uint8Array(), u64(quantity),
+    new Uint8Array(), new Uint8Array(), Uint8Array.from([decimals]), new Uint8Array(), u64(quantity),
   ];
   return Uint8Array.from([0x6a, ...fields.flatMap((field) => [...push(field)])]);
 }
@@ -50,7 +50,7 @@ test('address balance service returns only owned, validated, unspent token outpu
     txid,
     inputs: [],
     outputs: [
-      { valueSatoshis: 0n, lockingBytecode: genesisScript(123n) },
+      { valueSatoshis: 0n, lockingBytecode: genesisScript(123n, 2) },
       { valueSatoshis: 546n, lockingBytecode: ownedScript },
     ],
   };
@@ -68,6 +68,10 @@ test('address balance service returns only owned, validated, unspent token outpu
   assert.equal(result.balances.length, 1);
   assert.equal(result.balances[0]?.tokenId, txid);
   assert.equal(result.balances[0]?.amount, '123');
+  assert.equal(result.balances[0]?.displayAmount, '1.23');
+  assert.equal(result.balances[0]?.metadata?.name, 'WOAHBIT');
+  assert.equal(result.balances[0]?.metadata?.ticker, 'WOAH');
+  assert.equal(result.balances[0]?.metadata?.decimals, 2);
   assert.equal(result.balances[0]?.utxos[0]?.vout, 1);
 });
 

@@ -3,6 +3,7 @@ import { cashAddressToLockingBytecode } from '../bch/cashaddr.js';
 import { SlpRecoveryIndex } from '../slp/recovery-index.js';
 import type { SpendDiscoveryProvider } from '../slp/spend-discovery.js';
 import type { ParentResolver } from '../slp/validator.js';
+import { formatSlpAmount, SlpTokenMetadataService, type SlpTokenMetadata } from './token-metadata-service.js';
 
 export interface AddressSlpUtxo {
   txid: string;
@@ -15,6 +16,8 @@ export interface AddressSlpUtxo {
 export interface AddressSlpBalance {
   tokenId: string;
   amount: string;
+  displayAmount: string;
+  metadata: SlpTokenMetadata | null;
   utxos: AddressSlpUtxo[];
 }
 
@@ -34,11 +37,15 @@ export interface AddressBalanceSummary {
  * whether the output remains unspent.
  */
 export class SlpAddressBalanceService {
+  private readonly tokenMetadataService: SlpTokenMetadataService;
+
   constructor(
     private readonly resolver: ParentResolver,
     private readonly historyProvider: AddressHistoryProvider,
     private readonly spendProvider: SpendDiscoveryProvider,
-  ) {}
+  ) {
+    this.tokenMetadataService = new SlpTokenMetadataService(resolver);
+  }
 
   async getBalances(address: string): Promise<AddressBalanceSummary> {
     const normalizedAddress = address.trim().toLowerCase();
@@ -73,12 +80,18 @@ export class SlpAddressBalanceService {
       grouped.set(output.tokenId, current);
     }
 
-    const balances = [...grouped.entries()]
+    const balances = await Promise.all([...grouped.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([tokenId, value]) => ({
-        tokenId,
-        amount: value.amount.toString(),
-        utxos: value.utxos.sort((a, b) => a.txid.localeCompare(b.txid) || a.vout - b.vout),
+      .map(async ([tokenId, value]) => {
+        const token = await this.tokenMetadataService.getTokenMetadata(tokenId);
+        const metadata = token.validSlpGenesis ? token.metadata ?? null : null;
+        return {
+          tokenId,
+          amount: value.amount.toString(),
+          displayAmount: metadata ? formatSlpAmount(value.amount, metadata.decimals) : value.amount.toString(),
+          metadata,
+          utxos: value.utxos.sort((a, b) => a.txid.localeCompare(b.txid) || a.vout - b.vout),
+        };
       }));
 
     return {

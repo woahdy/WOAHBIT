@@ -13,6 +13,9 @@ The first core implementation provides:
 - mint-baton authorization checks
 - SEND input/output conservation checks
 - typed token-output results suitable for wallet balance/history indexing
+- address-scoped, spent-output-aware SLP balance recovery
+- canonical token metadata resolved from validated GENESIS transactions
+- read-only JSON endpoints for transaction validation, recovery, balances, and token details
 
 ## Development
 
@@ -30,7 +33,18 @@ npm run build
 
 `src/slp/validator.ts` recursively validates token ancestry. The validator intentionally does not hard-code an explorer or indexer. Implement `ParentResolver.getTransaction(txid)` with a trusted BCH node/indexer adapter, then feed normalized BCH transactions to `SlpValidator`.
 
+`src/app/token-metadata-service.ts` treats the 64-character GENESIS transaction ID as the token identity boundary. Human-readable names and tickers are exposed as self-asserted on-chain metadata and never used to merge or verify assets.
+
 This separation lets WOAHBIT support an old SLP-aware data source, a modern BCH indexer, or a local node without changing consensus validation logic.
+
+The explorer information architecture was informed by the public [blockparty-sh/slp-explorer](https://github.com/blockparty-sh/slp-explorer) project: address balances link back to canonical token IDs, and token detail views separate identity from display metadata. WOAHBIT independently implements those concepts on its existing TypeScript validator and current BCH providers; it does not depend on the reference project's legacy SLPDB backend.
+
+## Read-only API
+
+- `GET /validate/:txid` validates SLP Type 1 ancestry.
+- `GET /recover/:txid` returns the recovered validated transaction graph.
+- `GET /balances/:cashaddr` returns validated, address-owned, unspent balances with exact display amounts and GENESIS metadata.
+- `GET /tokens/:tokenId` returns metadata only when the ID is a valid SLP GENESIS transaction.
 
 ## Safety / scope
 
