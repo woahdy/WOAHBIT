@@ -5,6 +5,7 @@ import { FallbackParentResolver, FullStackRestResolver } from '../bch/fullstack-
 import { PaytacaAddressHistoryProvider } from '../bch/paytaca-address-history.js';
 import { PaytacaTransactionResolver } from '../bch/paytaca-transaction.js';
 import { PaytacaSpendDiscoveryProvider } from '../bch/paytaca-spend.js';
+import type { ParentResolver } from '../slp/validator.js';
 import { SlpAddressBalanceService } from './address-balance-service.js';
 import { renderExplorerPage } from './explorer-ui.js';
 import { renderWalletPage } from './wallet-ui.js';
@@ -21,6 +22,8 @@ export interface WoahbitServerConfig {
   spendDiscoveryApiUrl?: string;
   walletVaultReady?: boolean;
   port?: number;
+  /** Optional read-only transaction source, primarily for deterministic integration tests. */
+  resolver?: ParentResolver;
 }
 
 function json(response: ServerResponse, status: number, body: unknown): void {
@@ -57,7 +60,7 @@ export function createWoahbitServer(config: WoahbitServerConfig) {
     baseUrl: config.spendDiscoveryApiUrl,
     timeoutMs: config.rpcTimeoutMs,
   });
-  const resolver = config.fallbackApiUrl
+  const resolver = config.resolver ?? (config.fallbackApiUrl
     ? new FallbackParentResolver(
         new FallbackParentResolver(
           rpcResolver,
@@ -65,7 +68,7 @@ export function createWoahbitServer(config: WoahbitServerConfig) {
         ),
         paytacaResolver,
       )
-    : new FallbackParentResolver(rpcResolver, paytacaResolver);
+    : new FallbackParentResolver(rpcResolver, paytacaResolver));
   const service = new WoahbitValidationService(resolver);
   const spendProvider = new PaytacaSpendDiscoveryProvider({
     baseUrl: config.spendDiscoveryApiUrl,
@@ -153,7 +156,19 @@ export function createWoahbitServer(config: WoahbitServerConfig) {
 
       const tokenMatch = path.match(/^\/tokens\/([^/]+)$/);
       if (tokenMatch?.[1]) {
-        const tokenId = decodeURIComponent(tokenMatch[1]);
+        let tokenId: string;
+        try {
+          tokenId = decodeURIComponent(tokenMatch[1]);
+        } catch {
+          json(response, 400, {
+            tokenId: tokenMatch[1],
+            found: false,
+            validSlpGenesis: false,
+            identityBasis: 'canonical-token-id',
+            reason: 'Invalid token id encoding',
+          });
+          return;
+        }
         const result = await tokenMetadataService.getTokenMetadata(tokenId);
         const status = result.validSlpGenesis
           ? 200
@@ -182,7 +197,6 @@ export function createWoahbitServer(config: WoahbitServerConfig) {
     } catch (error) {
       json(response, 500, {
         error: 'Read-only service error',
-        message: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   });
