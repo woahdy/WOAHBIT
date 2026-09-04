@@ -8,6 +8,7 @@ import { PaytacaSpendDiscoveryProvider } from '../bch/paytaca-spend.js';
 import type { ParentResolver } from '../slp/validator.js';
 import { SlpAddressBalanceService } from './address-balance-service.js';
 import { renderExplorerPage } from './explorer-ui.js';
+import { renderTokenDetailPage } from './token-detail-ui.js';
 import { renderWalletPage } from './wallet-ui.js';
 import { WoahbitRecoveryService } from './recovery-service.js';
 import { SlpTokenMetadataService } from './token-metadata-service.js';
@@ -98,6 +99,17 @@ export function createWoahbitServer(config: WoahbitServerConfig) {
 
       if (path === '/wallet') {
         html(response, 200, renderWalletPage({ vaultReady: walletVaultReady }));
+        return;
+      }
+
+      if (path === '/token') {
+        html(response, 200, renderTokenDetailPage());
+        return;
+      }
+
+      const tokenPageMatch = path.match(/^\/token\/([0-9a-fA-F]{64})$/);
+      if (tokenPageMatch?.[1]) {
+        html(response, 200, renderTokenDetailPage(tokenPageMatch[1].toLowerCase()));
         return;
       }
 
