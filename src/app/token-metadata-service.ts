@@ -23,10 +23,6 @@ export interface TokenMetadataSummary {
   reason?: string;
 }
 
-function normalizeTokenId(tokenId: string): string {
-  return tokenId.trim().toLowerCase();
-}
-
 export function formatSlpAmount(amount: bigint, decimals: number): string {
   if (!Number.isInteger(decimals) || decimals < 0 || decimals > 9) {
     throw new Error('SLP decimals must be an integer between 0 and 9');
@@ -68,10 +64,10 @@ export class SlpTokenMetadataService {
   }
 
   async getTokenMetadata(tokenId: string): Promise<TokenMetadataSummary> {
-    const normalized = normalizeTokenId(tokenId);
+    const normalized = tokenId.toLowerCase();
     const base = { tokenId: normalized, identityBasis: 'canonical-token-id' as const };
 
-    if (!/^[0-9a-f]{64}$/.test(normalized)) {
+    if (!/^[0-9a-fA-F]{64}$/.test(tokenId)) {
       return { ...base, found: false, validSlpGenesis: false, reason: 'Invalid token id' };
     }
 

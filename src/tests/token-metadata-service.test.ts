@@ -90,6 +90,23 @@ test('does not query the resolver for an invalid token id', async () => {
   assert.equal(result.reason, 'Invalid token id');
 });
 
+test('validates the token id before normalization', async () => {
+  let queries = 0;
+  const service = new SlpTokenMetadataService({
+    getTransaction: async () => {
+      queries += 1;
+      return genesisTransaction();
+    },
+  });
+
+  for (const invalid of [` ${tokenId}`, `${tokenId} `, tokenId.slice(1), `${tokenId}0`, `${tokenId.slice(0, -1)}g`]) {
+    const result = await service.getTokenMetadata(invalid);
+    assert.equal(result.validSlpGenesis, false);
+    assert.equal(result.reason, 'Invalid token id');
+  }
+  assert.equal(queries, 0);
+});
+
 test('rejects a valid non-GENESIS transaction as a token identity', async () => {
   const transaction = genesisTransaction();
   transaction.outputs[0] = { valueSatoshis: 0n, lockingBytecode: new Uint8Array([0x51]) };
