@@ -48,7 +48,7 @@ export function renderExplorerPage(): string {
 <body>
   <main>
     <div class="brand-row">
-      <div class="brand"><div class="mark">W</div><strong>WOAHBIT</strong></div>
+      <div class="brand"><div class="mark">W</div><strong>WOAHBIT</strong> · <a href="/token">Token details</a></div>
       <div id="node-status" class="node"><span class="dot"></span><span>Checking BCH node…</span></div>
     </div>
     <h1>Read the chain.<br><span class="accent">Verify the token.</span></h1>

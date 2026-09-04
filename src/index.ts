@@ -16,6 +16,7 @@ export * from './app/recovery-service.js';
 export * from './app/address-balance-service.js';
 export * from './app/token-metadata-service.js';
 export * from './app/explorer-ui.js';
+export * from './app/token-detail-ui.js';
 export * from './app/wallet-ui.js';
 export * from './app/server.js';
 export * from './app/runtime.js';
