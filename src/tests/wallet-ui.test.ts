@@ -42,3 +42,15 @@ test('adds a read-only SLP recovery lookup that accepts public txids only', () =
   assert.match(page, /No keys, seed phrases, or signing data/);
   assert.doesNotMatch(page, /type="password"/);
 });
+
+test('adds a read-only address portfolio backed by verified balance API', () => {
+  const page = renderWalletPage();
+
+  assert.match(page, /Verified SLP portfolio/);
+  assert.match(page, /bitcoincash:\.\.\./);
+  assert.match(page, /fetch\('\/balances\/'/);
+  assert.match(page, /address-owned, unspent SLP outputs/);
+  assert.match(page, /\/token\/.*encodeURIComponent\(tokenId\)/);
+  assert.match(page, /textContent = metadata/);
+  assert.doesNotMatch(page, /innerHTML/);
+});
