@@ -8,6 +8,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && node --test dist/tests/*.test.js",
+    "test:live-slp": "npm run build && SLP_LIVE_ACCEPTANCE=1 node --test dist/tests/live-slp-mainnet.acceptance.test.js",
     "check": "tsc -p tsconfig.json --noEmit",
     "start": "node dist/app/cli.js"
   },
