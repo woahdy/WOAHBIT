@@ -11,7 +11,25 @@ WOAHBIT runs as a read-only Node.js web application and requires access to a Bit
 
 Never commit live RPC credentials to the repository.
 
-## Docker
+## Vercel static website
+
+Vercel runs `npm run build:site` and publishes `site-dist`. This copies the
+existing `docs` homepage and exports the shared read-only wallet renderer as
+`wallet.html`. With `cleanUrls: true`, `/wallet` serves that page, including
+direct visits with query parameters. Previously Vercel published only `docs`
+with no build, so the Node server's `/wallet` route was never deployed.
+
+Run `npm ci`, `npm run check`, `npm test`, and `npm run build:site` to validate.
+After deployment, verify `/` and `/wallet` return HTML with HTTP 200 and
+`/wallet/` redirects to `/wallet`.
+
+This static deployment does not run the Node API. Status, portfolio, and recovery
+requests continue to show their unavailable state until a read-only backend is
+connected. No vault configuration or secrets are included in the export; import,
+send, signing, and broadcasting remain disabled. Do not add a catch-all rewrite
+to the homepage, which would hide missing API routes behind HTML responses.
+
+## Docker runtime
 
 Build and run locally:
 
