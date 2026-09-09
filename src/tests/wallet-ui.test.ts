@@ -54,3 +54,17 @@ test('adds a read-only address portfolio backed by verified balance API', () => 
   assert.match(page, /textContent = metadata/);
   assert.doesNotMatch(page, /innerHTML/);
 });
+
+test('surfaces live read-only service status without adding write routes', () => {
+  const page = renderWalletPage();
+
+  assert.match(page, /WOAHBIT service/);
+  assert.match(page, /BCH network/);
+  assert.match(page, /Transaction mode/);
+  assert.match(page, /fetch\('\/health'/);
+  assert.match(page, /fetch\('\/node-status'/);
+  assert.match(page, /fetch\('\/wallet-status'/);
+  assert.match(page, /Read-only API/);
+  assert.match(page, /No transaction broadcast route is exposed/);
+  assert.doesNotMatch(page, /method:\s*['"]POST['"]/);
+});
