@@ -10,6 +10,7 @@
     "build:site": "npm run build && node scripts/build-site.mjs",
     "test": "npm run build && node --test dist/tests/*.test.js",
     "test:live-slp": "npm run build && SLP_LIVE_ACCEPTANCE=1 node --test dist/tests/live-slp-mainnet.acceptance.test.js",
+    "discover:slp-utxos": "npm run build && node dist/app/discover-slp-utxos-cli.js",
     "check": "tsc -p tsconfig.json --noEmit",
     "start": "node dist/app/cli.js"
   },
