@@ -1,5 +1,5 @@
 import type { AddressHistoryProvider } from '../bch/paytaca-address-history.js';
-import { cashAddressToLockingBytecode } from '../bch/cashaddr.js';
+import { cashAddressToLockingBytecode, normalizeMainnetCashAddress } from '../bch/cashaddr.js';
 import { SlpRecoveryIndex } from '../slp/recovery-index.js';
 import type { SpendDiscoveryProvider } from '../slp/spend-discovery.js';
 import type { ParentResolver } from '../slp/validator.js';
@@ -48,7 +48,7 @@ export class SlpAddressBalanceService {
   }
 
   async getBalances(address: string): Promise<AddressBalanceSummary> {
-    const normalizedAddress = address.trim().toLowerCase();
+    const normalizedAddress = normalizeMainnetCashAddress(address);
     const lockingBytecodeHex = Buffer.from(cashAddressToLockingBytecode(normalizedAddress)).toString('hex');
     const history = await this.historyProvider.getAddressHistory(normalizedAddress);
     const index = new SlpRecoveryIndex(this.resolver);

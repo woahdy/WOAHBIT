@@ -97,6 +97,42 @@ export function decodeCashAddress(address: string): DecodedCashAddress {
   throw new Error('Unsupported CashAddr type');
 }
 
+function cashAddressVersion(type: DecodedCashAddress['type'], hashLength: number): number {
+  const sizeBits = [20, 24, 28, 32, 40, 48, 56, 64].indexOf(hashLength);
+  if (sizeBits < 0) throw new Error('Unsupported CashAddr hash size');
+  const typeBits = type === 'p2pkh' ? 0 : 1;
+  return (typeBits << 3) | sizeBits;
+}
+
+/** Encode a decoded CashAddr payload using a different network/application prefix. */
+export function encodeCashAddress(
+  prefix: string,
+  type: DecodedCashAddress['type'],
+  hash: Uint8Array,
+): string {
+  const normalizedPrefix = prefix.trim().toLowerCase();
+  if (!normalizedPrefix) throw new Error('CashAddr prefix required');
+  const version = cashAddressVersion(type, hash.length);
+  const payload = convertBits([version, ...hash], 8, 5, true);
+  const checksumValue = polymod([...prefixExpand(normalizedPrefix), ...payload, 0, 0, 0, 0, 0, 0, 0, 0]);
+  const checksum = Array.from({ length: 8 }, (_, index) =>
+    Number((checksumValue >> BigInt(5 * (7 - index))) & 31n));
+  return `${normalizedPrefix}:${[...payload, ...checksum].map((value) => CHARSET[value]!).join('')}`;
+}
+
+/**
+ * Normalize a mainnet BCH/SLP address to the modern bitcoincash: form while
+ * preserving the exact locking-script payload. Legacy simpleledger: addresses
+ * therefore remain usable for read-only SLP recovery against modern BCH APIs.
+ */
+export function normalizeMainnetCashAddress(address: string): string {
+  const decoded = decodeCashAddress(address);
+  if (decoded.prefix !== 'bitcoincash' && decoded.prefix !== 'simpleledger') {
+    throw new Error(`Unsupported mainnet CashAddr prefix: ${decoded.prefix}`);
+  }
+  return encodeCashAddress('bitcoincash', decoded.type, decoded.hash);
+}
+
 /** Convert a supported CashAddr into the standard locking bytecode controlling its UTXOs. */
 export function cashAddressToLockingBytecode(address: string): Uint8Array {
   const decoded = decodeCashAddress(address);
