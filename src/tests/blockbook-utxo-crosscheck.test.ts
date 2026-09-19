@@ -18,6 +18,26 @@ test('confirms an exact address-scoped outpoint present in the independent UTXO 
   assert.deepEqual(await provider.check(address, { txid, vout: 2 }), { state: 'unspent' });
 });
 
+test('sends deployment-configured headers without putting credentials in the URL', async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let seenUrl = '';
+  let seenHeaders: Headers | undefined;
+  globalThis.fetch = async (input, init) => {
+    seenUrl = String(input);
+    seenHeaders = new Headers(init?.headers);
+    return jsonResponse([{ txid, vout: 2 }]);
+  };
+
+  const provider = new BlockbookUtxoCrossCheckProvider({
+    baseUrl: 'https://example.test/api/v2',
+    headers: { 'api-key': 'deployment-secret' },
+  });
+  assert.deepEqual(await provider.check(address, { txid, vout: 2 }), { state: 'unspent' });
+  assert.equal(seenHeaders?.get('api-key'), 'deployment-secret');
+  assert.equal(seenUrl.includes('deployment-secret'), false);
+});
+
 test('reports not-present only for a valid successful UTXO-set response', async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });
