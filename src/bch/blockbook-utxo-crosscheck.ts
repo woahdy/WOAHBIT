@@ -9,10 +9,12 @@ export interface UtxoCrossCheckResult {
 }
 
 export interface BlockbookUtxoCrossCheckConfig {
-  /** Blockbook API root ending at /api/v2 (credentials may be supplied via deployment config). */
+  /** Blockbook API root ending at /api/v2. */
   baseUrl: string;
   timeoutMs?: number;
   confirmedOnly?: boolean;
+  /** Optional deployment-supplied authentication headers. Never commit credentials. */
+  headers?: Readonly<Record<string, string>>;
 }
 
 interface BlockbookUtxo {
@@ -32,12 +34,14 @@ export class BlockbookUtxoCrossCheckProvider {
   private readonly baseUrl: string;
   private readonly timeoutMs: number;
   private readonly confirmedOnly: boolean;
+  private readonly headers: Readonly<Record<string, string>>;
 
   constructor(config: BlockbookUtxoCrossCheckConfig) {
     if (!config.baseUrl?.trim()) throw new BchRpcError('Blockbook UTXO base URL is required');
     this.baseUrl = config.baseUrl.replace(/\/+$/, '');
     this.timeoutMs = config.timeoutMs ?? 15_000;
     this.confirmedOnly = config.confirmedOnly ?? false;
+    this.headers = { ...(config.headers ?? {}) };
   }
 
   async check(address: string, outpoint: Outpoint): Promise<UtxoCrossCheckResult> {
@@ -48,7 +52,7 @@ export class BlockbookUtxoCrossCheckProvider {
     try {
       const suffix = this.confirmedOnly ? '?confirmed=true' : '';
       const response = await fetch(`${this.baseUrl}/utxo/${encodeURIComponent(address.trim())}${suffix}`, {
-        headers: { accept: 'application/json' },
+        headers: { accept: 'application/json', ...this.headers },
         signal: controller.signal,
       });
       if (!response.ok) return { state: 'indeterminate', reason: `HTTP ${response.status}` };
