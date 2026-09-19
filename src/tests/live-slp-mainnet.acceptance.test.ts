@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { PaytacaAddressHistoryProvider } from '../bch/paytaca-address-history.js';
 import { PaytacaTransactionResolver } from '../bch/paytaca-transaction.js';
+import { BlockbookUtxoCrossCheckProvider } from '../bch/blockbook-utxo-crosscheck.js';
 import { cashAddressToLockingBytecode } from '../bch/cashaddr.js';
 import { SlpTokenMetadataService } from '../app/token-metadata-service.js';
 
@@ -11,6 +12,19 @@ const SOUR_TOKEN_ID = '6448381f9649ecacd8c30189cfbfee71a91b6b9738ea494fe33f8b8b5
 // Blockchair's receipt for the same transaction records vout 1 at this BCH CashAddr.
 const SOUR_GENESIS_RECIPIENT = 'bitcoincash:qp9xtga6v3s7d7wq39d2nvkpy9g95hzzzc3uhuxxef';
 const runLive = process.env.SLP_LIVE_ACCEPTANCE === '1';
+
+function independentUtxoProvider(): BlockbookUtxoCrossCheckProvider {
+  const baseUrl = process.env.SLP_BLOCKBOOK_BASE_URL?.trim();
+  assert.ok(baseUrl, 'SLP_BLOCKBOOK_BASE_URL is required for live dual-source UTXO acceptance');
+  const apiKey = process.env.SLP_BLOCKBOOK_API_KEY?.trim();
+  const apiKeyHeader = process.env.SLP_BLOCKBOOK_API_KEY_HEADER?.trim() || 'api-key';
+  return new BlockbookUtxoCrossCheckProvider({
+    baseUrl,
+    confirmedOnly: true,
+    timeoutMs: 20_000,
+    headers: apiKey ? { [apiKeyHeader]: apiKey } : undefined,
+  });
+}
 
 test('live mainnet: resolves and validates the documented SOUR SLP GENESIS', { skip: !runLive, timeout: 30_000 }, async () => {
   const resolver = new PaytacaTransactionResolver({ timeoutMs: 20_000 });
@@ -46,4 +60,12 @@ test('live mainnet: discovers SOUR GENESIS from its independently documented rec
     cashAddressToLockingBytecode(SOUR_GENESIS_RECIPIENT),
     'vout 1 must be locked to the independently documented recipient CashAddr',
   );
+});
+
+test('live mainnet: independently cross-checks the documented SOUR token outpoint', { skip: !runLive, timeout: 30_000 }, async () => {
+  const result = await independentUtxoProvider().check(SOUR_GENESIS_RECIPIENT, { txid: SOUR_TOKEN_ID, vout: 1 });
+  assert.notEqual(result.state, 'indeterminate', `independent UTXO provider must answer deterministically: ${result.reason ?? 'unknown error'}`);
+  // This historical GENESIS outpoint is a discovery probe, not yet the permanent survivor fixture.
+  // If it is spent, the test records that deterministically and the batch scanner must locate a current survivor.
+  assert.ok(result.state === 'unspent' || result.state === 'not-present');
 });
