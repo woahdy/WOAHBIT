@@ -3,6 +3,7 @@ export * from './slp/parser.js';
 export * from './slp/validator.js';
 export * from './slp/recovery-index.js';
 export * from './slp/spend-discovery.js';
+export * from './slp/send-planner.js';
 export * from './bch/adapter.js';
 export * from './bch/fullstack-rest.js';
 export * from './bch/paytaca-transaction.js';
