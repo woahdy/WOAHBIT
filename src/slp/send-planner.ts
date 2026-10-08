@@ -88,6 +88,11 @@ export function planSlpType1Send(
     if (candidate.tokenId !== tokenId) throw new SlpSendPlanError('Token input does not match requested token ID');
     if (candidate.amount <= 0n) throw new SlpSendPlanError('Token input quantity must be positive');
     u64(candidate.amount);
+    if (!candidate.outpoint || typeof candidate.outpoint.txid !== 'string' || !TOKEN_ID.test(candidate.outpoint.txid) ||
+        !Number.isSafeInteger(candidate.outpoint.vout) || candidate.outpoint.vout < 0 ||
+        candidate.outpoint.vout > 0xffff_ffff) {
+      throw new SlpSendPlanError('Token input outpoint must contain a 64-character lowercase txid and uint32 vout');
+    }
     const key = `${candidate.outpoint.txid}:${candidate.outpoint.vout}`;
     if (seen.has(key)) throw new SlpSendPlanError('Duplicate token input outpoint');
     seen.add(key);
