@@ -58,10 +58,29 @@ export class PaytacaSpendDiscoveryProvider implements SpendDiscoveryProvider {
     const vout = validateVout(outpoint.vout);
     const status = await this.fetchJson(`${this.baseUrl}/api/bch/txout/${txid}/${vout}`) as TxOutStatusPayload;
 
-    if (status.spent === false || status.status === 'unspent') return null;
-    if (status.spent !== true && status.status !== 'spent') {
+    // Never interpret contradictory provider fields as proof of an unspent UTXO.
+    if (status.txid !== undefined && (typeof status.txid !== 'string' ||
+        normalizeTxid(status.txid) !== txid)) {
+      throw new BchRpcError('BCH spend index returned the wrong transaction id');
+    }
+    if (status.vout !== undefined && status.vout !== vout) {
+      throw new BchRpcError('BCH spend index returned the wrong output index');
+    }
+    if (status.spent !== undefined && typeof status.spent !== 'boolean') {
+      throw new BchRpcError('BCH spend index returned an invalid spent flag');
+    }
+    if (status.status !== undefined && status.status !== 'spent' && status.status !== 'unspent') {
       throw new BchRpcError('BCH spend index returned an unknown output status');
     }
+    const flag = status.spent;
+    const state = status.status === 'spent' ? true : status.status === 'unspent' ? false : undefined;
+    if (flag === undefined && state === undefined) {
+      throw new BchRpcError('BCH spend index did not establish output status');
+    }
+    if (flag !== undefined && state !== undefined && flag !== state) {
+      throw new BchRpcError('BCH spend index returned contradictory output status');
+    }
+    if ((flag ?? state) === false) return null;
 
     const spender = await this.fetchJson(`${this.baseUrl}/api/bch/txout/${txid}/${vout}/spender`) as SpenderPayload;
     if (typeof spender.txid !== 'string') {
