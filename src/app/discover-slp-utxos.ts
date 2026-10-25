@@ -1,4 +1,5 @@
 import { SlpAddressBalanceService } from './address-balance-service.js';
+import { formatSlpAmount } from './token-metadata-service.js';
 import type { AddressHistoryProvider } from '../bch/paytaca-address-history.js';
 import type { SpendDiscoveryProvider } from '../slp/spend-discovery.js';
 import type { ParentResolver } from '../slp/validator.js';
@@ -40,18 +41,9 @@ export async function discoverSlpUtxos(
       vout: utxo.vout,
       tokenId: balance.tokenId,
       amount: utxo.amount,
-      displayAmount: formatSingleUtxoAmount(utxo.amount, decimals),
+      displayAmount: decimals === null ? utxo.amount : formatSlpAmount(BigInt(utxo.amount), decimals),
       decimals,
       valueSatoshis: utxo.valueSatoshis,
     }));
   });
-}
-
-function formatSingleUtxoAmount(amount: string, decimals: number | null): string {
-  if (decimals === null || decimals === 0) return amount;
-  const value = BigInt(amount);
-  const divisor = 10n ** BigInt(decimals);
-  const whole = value / divisor;
-  const fraction = (value % divisor).toString().padStart(decimals, '0').replace(/0+$/, '');
-  return fraction.length > 0 ? `${whole}.${fraction}` : whole.toString();
 }
