@@ -60,7 +60,7 @@ function validatedBlockbookBaseUrl(value) {
     throw new Error('Blockbook provider must use HTTPS (or loopback HTTP)');
   }
   if (url.username || url.password || url.search || url.hash ||
-      !url.pathname.replace(/\\/+$/, '').endsWith('/api/v2')) {
+      !url.pathname.replace(new RegExp('/+$'), '').endsWith('/api/v2')) {
     throw new Error('Blockbook base URL must end in /api/v2 without credentials, query or fragment');
   }
   return value;
