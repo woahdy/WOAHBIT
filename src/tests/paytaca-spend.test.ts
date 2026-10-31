@@ -78,3 +78,48 @@ test('rejects invalid outpoints before making network requests', async (t) => {
   await assert.rejects(() => provider.getSpend({ txid: fundingTxid, vout: -1 }), /Invalid output index/);
   assert.equal(called, false);
 });
+
+test('fails closed when status and spent fields contradict each other', async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const provider = new PaytacaSpendDiscoveryProvider({ baseUrl: 'https://example.test' });
+  for (const status of [
+    { spent: false, status: 'spent' },
+    { spent: true, status: 'unspent' },
+  ]) {
+    let calls = 0;
+    globalThis.fetch = async () => { calls++; return jsonResponse(status); };
+    await assert.rejects(
+      () => provider.getSpend({ txid: fundingTxid, vout: 1 }),
+      /contradictory output status/,
+    );
+    assert.equal(calls, 1, 'do not request a spender for inconsistent status');
+  }
+});
+
+test('fails closed on mismatched outpoint identity or malformed status fields', async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const provider = new PaytacaSpendDiscoveryProvider({ baseUrl: 'https://example.test' });
+  for (const payload of [
+    { txid: spendingTxid, vout: 1, spent: false },
+    { txid: fundingTxid, vout: 2, spent: false },
+    { spent: 'false', status: 'unspent' },
+    { spent: false, status: 'unknown' },
+    { status: 'unknown' },
+    {},
+  ]) {
+    globalThis.fetch = async () => jsonResponse(payload);
+    await assert.rejects(() => provider.getSpend({ txid: fundingTxid, vout: 1 }));
+  }
+});
+
+test('accepts either consistent status field on its own', async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const provider = new PaytacaSpendDiscoveryProvider({ baseUrl: 'https://example.test' });
+  for (const payload of [{ spent: false }, { status: 'unspent' }]) {
+    globalThis.fetch = async () => jsonResponse(payload);
+    assert.equal(await provider.getSpend({ txid: fundingTxid, vout: 1 }), null);
+  }
+});
