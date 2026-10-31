@@ -8,12 +8,14 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "build:site": "npm run build && node scripts/build-site.mjs",
-    "test": "npm run build && node --test dist/tests/*.test.js",
+    "test": "npm run build && node --test dist/tests/*.test.js && node --test scripts/run-live-slp-survivor.test.mjs scripts/find-live-slp-survivor.test.mjs",
     "test:live-slp": "npm run build && SLP_LIVE_ACCEPTANCE=1 node --test dist/tests/live-slp-mainnet.acceptance.test.js",
     "discover:slp-utxos": "npm run build && node dist/app/discover-slp-utxos-cli.js",
     "discover:slp-utxos:batch": "npm run build && node dist/app/discover-slp-utxos-batch-cli.js",
     "check": "tsc -p tsconfig.json --noEmit",
-    "start": "node dist/app/cli.js"
+    "start": "node dist/app/cli.js",
+    "test:live-slp:survivor": "node scripts/run-live-slp-survivor.mjs",
+    "find:live-slp:survivor": "npm run build && node scripts/find-live-slp-survivor.mjs"
   },
   "engines": {
     "node": ">=20"
