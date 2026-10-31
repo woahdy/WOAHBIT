@@ -29,7 +29,7 @@ test('freezes all eight survivor fields only after independent UTXO confirmation
   assert.equal(result.fixture.SLP_ACCEPTANCE_DISPLAY_QUANTITY, '1.200');
   assert.equal(result.fixture.SLP_BLOCKBOOK_BASE_URL, baseUrl);
   assert.equal(Object.keys(result.fixture).length, 8);
-  assert.match(result.verifiedAt, /^\\d{4}-\\d\\d-\\d\\dT/);
+  assert.match(result.verifiedAt, /^[0-9]{4}-[0-9]{2}-[0-9]{2}T/);
 });
 
 test('never treats a missing or indeterminate independent UTXO as spendable', async () => {
