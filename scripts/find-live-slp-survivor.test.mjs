@@ -19,12 +19,12 @@ test('freezes all eight survivor fields only after independent UTXO confirmation
   let checked;
   const result = await findLiveSurvivor([address], {
     ...options,
-    crossCheck: async (a, outpoint) => {
-      checked = [a, outpoint];
+    crossCheck: async (a, outpoint, valueSatoshis) => {
+      checked = [a, outpoint, valueSatoshis];
       return { state: 'unspent' };
     },
   });
-  assert.deepEqual(checked, [address, { txid: candidate.txid, vout: 1 }]);
+  assert.deepEqual(checked, [address, { txid: candidate.txid, vout: 1 }, '546']);
   assert.equal(result.fixture.SLP_ACCEPTANCE_RAW_QUANTITY, '1200');
   assert.equal(result.fixture.SLP_ACCEPTANCE_DISPLAY_QUANTITY, '1.200');
   assert.equal(result.fixture.SLP_BLOCKBOOK_BASE_URL, baseUrl);
@@ -46,6 +46,7 @@ test('does not accept invalid metadata, token IDs, quantity or display amounts',
     { txid: 'not-a-txid' }, { tokenId: 'bad' },
     { amount: '0' }, { amount: '18446744073709551616' },
     { displayAmount: '1.2' },
+    { valueSatoshis: '546.0' }, { valueSatoshis: '18446744073709551616' },
   ]) {
     let checked = false;
     const scan = () => findLiveSurvivor([address], {

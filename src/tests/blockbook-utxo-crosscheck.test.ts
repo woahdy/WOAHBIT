@@ -73,3 +73,26 @@ test('fails closed on invalid query input without a network request', async (t) 
   assert.deepEqual(await provider.check(address, { txid: 'bad', vout: 0 }), { state: 'indeterminate', reason: 'invalid query' });
   assert.equal(called, false);
 });
+
+test('requires independent BCH satoshi value to match the validated output', async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let payload: unknown = [{ txid, vout: 2, value: '546' }];
+  let calls = 0;
+  globalThis.fetch = async () => { calls += 1; return jsonResponse(payload); };
+  const provider = new BlockbookUtxoCrossCheckProvider({ baseUrl: 'https://example.test/api/v2' });
+
+  assert.deepEqual(await provider.check(address, { txid, vout: 2 }, '546'), { state: 'unspent' });
+  assert.deepEqual(await provider.check(address, { txid, vout: 2 }, '547'),
+    { state: 'indeterminate', reason: 'independent UTXO value mismatch' });
+  payload = [{ txid, vout: 2 }];
+  assert.deepEqual(await provider.check(address, { txid, vout: 2 }, '546'),
+    { state: 'indeterminate', reason: 'invalid independent UTXO value' });
+  payload = [{ txid, vout: 2, value: 'not-a-number' }];
+  assert.deepEqual(await provider.check(address, { txid, vout: 2 }, '546'),
+    { state: 'indeterminate', reason: 'invalid independent UTXO value' });
+  const before = calls;
+  assert.deepEqual(await provider.check(address, { txid, vout: 2 }, '546.0'),
+    { state: 'indeterminate', reason: 'invalid query' });
+  assert.equal(calls, before, 'invalid expected BCH value must not reach the provider');
+});

@@ -30,6 +30,11 @@ export async function findLiveSurvivor(addresses, { discover, crossCheck, baseUr
       if (!Number.isSafeInteger(candidate.decimals) || candidate.decimals < 0 || candidate.decimals > 9) {
         continue; // Unknown metadata cannot establish the exact display amount.
       }
+      if (typeof candidate.valueSatoshis !== 'string' ||
+          !/^(0|[1-9][0-9]*)$/.test(candidate.valueSatoshis) ||
+          BigInt(candidate.valueSatoshis) > 0xffff_ffff_ffff_ffffn) {
+        throw new Error('SLP discovery returned an invalid BCH output value');
+      }
       const fixture = {
         SLP_BLOCKBOOK_BASE_URL: baseUrl,
         SLP_ACCEPTANCE_CASHADDR: address,
@@ -43,7 +48,7 @@ export async function findLiveSurvivor(addresses, { discover, crossCheck, baseUr
       // Exact quantity, canonical ID and address structure are checked before
       // the independent provider is contacted.
       validateSurvivorEnvironment(fixture);
-      const independent = await crossCheck(address, { txid: candidate.txid, vout: candidate.vout });
+      const independent = await crossCheck(address, { txid: candidate.txid, vout: candidate.vout }, candidate.valueSatoshis);
       if (independent?.state === 'unspent') {
         return { fixture, inspected, verifiedAt: new Date().toISOString() };
       }
@@ -90,7 +95,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const result = await findLiveSurvivor(addresses, {
       baseUrl,
       discover: (address) => discovery.discoverSlpUtxos(address, resolver, addressHistory, spends),
-      crossCheck: (address, outpoint) => independent.check(address, outpoint),
+      crossCheck: (address, outpoint, expectedValueSatoshis) => independent.check(address, outpoint, expectedValueSatoshis),
     });
     // Never print the Blockbook API key. A UTXO's unspent status is time-sensitive;
     // the separate live acceptance command must recheck it at execution time.

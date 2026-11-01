@@ -20,6 +20,7 @@ export interface BlockbookUtxoCrossCheckConfig {
 interface BlockbookUtxo {
   txid?: unknown;
   vout?: unknown;
+  value?: unknown;
 }
 
 function validOutpoint(outpoint: Outpoint): boolean {
@@ -44,8 +45,16 @@ export class BlockbookUtxoCrossCheckProvider {
     this.headers = { ...(config.headers ?? {}) };
   }
 
-  async check(address: string, outpoint: Outpoint): Promise<UtxoCrossCheckResult> {
-    if (!address.trim() || !validOutpoint(outpoint)) return { state: 'indeterminate', reason: 'invalid query' };
+  async check(address: string, outpoint: Outpoint, expectedValueSatoshis?: string): Promise<UtxoCrossCheckResult> {
+    // Optional third argument is required by the live-survivor acceptance path.
+    // A UTXO with the right outpoint but an inconsistent BCH value is not proof.
+    const validExpectedValue = expectedValueSatoshis === undefined ||
+      (typeof expectedValueSatoshis === 'string' &&
+        /^(0|[1-9][0-9]*)$/.test(expectedValueSatoshis) &&
+        BigInt(expectedValueSatoshis) <= 0xffff_ffff_ffff_ffffn);
+    if (!address.trim() || !validOutpoint(outpoint) || !validExpectedValue) {
+      return { state: 'indeterminate', reason: 'invalid query' };
+    }
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
@@ -65,6 +74,16 @@ export class BlockbookUtxoCrossCheckProvider {
           return { state: 'indeterminate', reason: 'invalid UTXO entry' };
         }
         if (item.txid.toLowerCase() === outpoint.txid.trim().toLowerCase() && item.vout === outpoint.vout) {
+          if (expectedValueSatoshis !== undefined) {
+            if (typeof item.value !== 'string' ||
+                !/^(0|[1-9][0-9]*)$/.test(item.value) ||
+                BigInt(item.value) > 0xffff_ffff_ffff_ffffn) {
+              return { state: 'indeterminate', reason: 'invalid independent UTXO value' };
+            }
+            if (BigInt(item.value) !== BigInt(expectedValueSatoshis)) {
+              return { state: 'indeterminate', reason: 'independent UTXO value mismatch' };
+            }
+          }
           return { state: 'unspent' };
         }
       }
