@@ -24,7 +24,7 @@ interface BlockbookUtxo {
 }
 
 function validOutpoint(outpoint: Outpoint): boolean {
-  return /^[0-9a-f]{64}$/i.test(outpoint.txid.trim()) && Number.isSafeInteger(outpoint.vout) && outpoint.vout >= 0;
+  return /^[0-9a-f]{64}$/i.test(outpoint.txid.trim()) && Number.isSafeInteger(outpoint.vout) && outpoint.vout >= 0 && outpoint.vout <= 0xffff_ffff;
 }
 
 /**
