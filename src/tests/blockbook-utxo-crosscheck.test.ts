@@ -71,6 +71,7 @@ test('fails closed on invalid query input without a network request', async (t) 
   const provider = new BlockbookUtxoCrossCheckProvider({ baseUrl: 'https://example.test/api/v2' });
   assert.deepEqual(await provider.check('', { txid, vout: 0 }), { state: 'indeterminate', reason: 'invalid query' });
   assert.deepEqual(await provider.check(address, { txid: 'bad', vout: 0 }), { state: 'indeterminate', reason: 'invalid query' });
+  assert.deepEqual(await provider.check(address, { txid, vout: 0x1_0000_0000 }), { state: 'indeterminate', reason: 'invalid query' });
   assert.equal(called, false);
 });
 
