@@ -96,3 +96,36 @@ test('requires independent BCH satoshi value to match the validated output', asy
     { state: 'indeterminate', reason: 'invalid query' });
   assert.equal(calls, before, 'invalid expected BCH value must not reach the provider');
 });
+
+
+test('fails closed on duplicate matching outpoints even if the first value agrees', async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async () => jsonResponse([
+    { txid, vout: 2, value: '546' },
+    { txid: txid.toUpperCase(), vout: 2, value: '547' },
+  ]);
+  const provider = new BlockbookUtxoCrossCheckProvider({ baseUrl: 'https://example.test/api/v2' });
+  assert.deepEqual(await provider.check(address, { txid, vout: 2 }, '546'),
+    { state: 'indeterminate', reason: 'duplicate independent UTXO outpoint' });
+});
+
+test('does not accept a matching outpoint before validating all provider entries', async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let payload: unknown = [];
+  globalThis.fetch = async () => jsonResponse(payload);
+  const provider = new BlockbookUtxoCrossCheckProvider({ baseUrl: 'https://example.test/api/v2' });
+
+  for (const invalid of [
+    { txid: 'not-a-txid', vout: 0 },
+    { txid: 'b'.repeat(64), vout: -1 },
+    { txid: 'b'.repeat(64), vout: 0x1_0000_0000 },
+    { txid: 'b'.repeat(64), vout: '0' },
+    null,
+  ]) {
+    payload = [{ txid, vout: 2, value: '546' }, invalid];
+    assert.deepEqual(await provider.check(address, { txid, vout: 2 }, '546'),
+      { state: 'indeterminate', reason: 'invalid UTXO entry' });
+  }
+});
