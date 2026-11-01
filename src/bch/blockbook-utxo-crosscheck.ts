@@ -68,12 +68,20 @@ export class BlockbookUtxoCrossCheckProvider {
       const payload: unknown = await response.json();
       if (!Array.isArray(payload)) return { state: 'indeterminate', reason: 'invalid payload' };
 
+      // Inspect the entire response before accepting an outpoint. Returning
+      // on the first match would ignore malformed later entries or a duplicate
+      // of the same outpoint with contradictory evidence.
+      let matched = false;
       for (const item of payload as BlockbookUtxo[]) {
-        if (!item || typeof item !== 'object') return { state: 'indeterminate', reason: 'invalid UTXO entry' };
-        if (typeof item.txid !== 'string' || !Number.isSafeInteger(item.vout)) {
+        if (!item || typeof item !== 'object' ||
+            typeof item.txid !== 'string' || !/^[0-9a-f]{64}$/i.test(item.txid) ||
+            !Number.isSafeInteger(item.vout) || (item.vout as number) < 0 ||
+            (item.vout as number) > 0xffff_ffff) {
           return { state: 'indeterminate', reason: 'invalid UTXO entry' };
         }
         if (item.txid.toLowerCase() === outpoint.txid.trim().toLowerCase() && item.vout === outpoint.vout) {
+          if (matched) return { state: 'indeterminate', reason: 'duplicate independent UTXO outpoint' };
+          matched = true;
           if (expectedValueSatoshis !== undefined) {
             if (typeof item.value !== 'string' ||
                 !/^(0|[1-9][0-9]*)$/.test(item.value) ||
@@ -84,10 +92,9 @@ export class BlockbookUtxoCrossCheckProvider {
               return { state: 'indeterminate', reason: 'independent UTXO value mismatch' };
             }
           }
-          return { state: 'unspent' };
         }
       }
-      return { state: 'not-present' };
+      return { state: matched ? 'unspent' : 'not-present' };
     } catch (error) {
       return { state: 'indeterminate', reason: error instanceof Error ? error.message : String(error) };
     } finally {
