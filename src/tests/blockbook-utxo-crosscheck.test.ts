@@ -9,6 +9,34 @@ function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 }
 
+test('rejects unsafe Blockbook URLs before sending any authentication headers', () => {
+  for (const baseUrl of [
+    'http://example.test/api/v2',
+    'https://user:password@example.test/api/v2',
+    'https://example.test/api/v2?api-key=secret',
+    'https://example.test/api/v2#fragment',
+    'https://example.test/api/v1',
+    'not-a-url',
+  ]) {
+    assert.throws(
+      () => new BlockbookUtxoCrossCheckProvider({
+        baseUrl, headers: { 'api-key': 'deployment-secret' },
+      }),
+      /Blockbook UTXO base URL/,
+      `unsafe URL must be rejected: ${baseUrl}`,
+    );
+  }
+  assert.doesNotThrow(() => new BlockbookUtxoCrossCheckProvider({
+    baseUrl: 'http://127.0.0.1:8080/api/v2',
+  }));
+  assert.doesNotThrow(() => new BlockbookUtxoCrossCheckProvider({
+    baseUrl: 'http://localhost:8080/api/v2/',
+  }));
+  assert.doesNotThrow(() => new BlockbookUtxoCrossCheckProvider({
+    baseUrl: 'https://example.test/addon/1118/api/v2/',
+  }));
+});
+
 test('confirms an exact address-scoped outpoint present in the independent UTXO set', async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });
