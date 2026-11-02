@@ -124,7 +124,7 @@ test('live mainnet: survivor SLP outpoint is dual-source unspent and HTTP balanc
 
     assert.equal(await spendProvider.getSpend(outpoint), null,
       'Paytaca forward-spend provider must explicitly confirm unspent');
-    const independent = await independentUtxoProvider().check(address, outpoint);
+    const independent = await independentUtxoProvider().check(address, outpoint, tx.outputs[vout]!.valueSatoshis.toString());
     assert.equal(independent.state, 'unspent',
       `independent UTXO set must contain exact outpoint: ${independent.reason ?? 'not found'}`);
 

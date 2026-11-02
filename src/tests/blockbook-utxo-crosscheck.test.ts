@@ -9,6 +9,34 @@ function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 }
 
+test('rejects unsafe Blockbook URLs before sending any authentication headers', () => {
+  for (const baseUrl of [
+    'http://example.test/api/v2',
+    'https://user:password@example.test/api/v2',
+    'https://example.test/api/v2?api-key=secret',
+    'https://example.test/api/v2#fragment',
+    'https://example.test/api/v1',
+    'not-a-url',
+  ]) {
+    assert.throws(
+      () => new BlockbookUtxoCrossCheckProvider({
+        baseUrl, headers: { 'api-key': 'deployment-secret' },
+      }),
+      /Blockbook UTXO base URL/,
+      `unsafe URL must be rejected: ${baseUrl}`,
+    );
+  }
+  assert.doesNotThrow(() => new BlockbookUtxoCrossCheckProvider({
+    baseUrl: 'http://127.0.0.1:8080/api/v2',
+  }));
+  assert.doesNotThrow(() => new BlockbookUtxoCrossCheckProvider({
+    baseUrl: 'http://localhost:8080/api/v2/',
+  }));
+  assert.doesNotThrow(() => new BlockbookUtxoCrossCheckProvider({
+    baseUrl: 'https://example.test/addon/1118/api/v2/',
+  }));
+});
+
 test('confirms an exact address-scoped outpoint present in the independent UTXO set', async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });
@@ -71,5 +99,97 @@ test('fails closed on invalid query input without a network request', async (t) 
   const provider = new BlockbookUtxoCrossCheckProvider({ baseUrl: 'https://example.test/api/v2' });
   assert.deepEqual(await provider.check('', { txid, vout: 0 }), { state: 'indeterminate', reason: 'invalid query' });
   assert.deepEqual(await provider.check(address, { txid: 'bad', vout: 0 }), { state: 'indeterminate', reason: 'invalid query' });
+  assert.deepEqual(await provider.check(address, { txid, vout: 0x1_0000_0000 }), { state: 'indeterminate', reason: 'invalid query' });
   assert.equal(called, false);
+});
+
+test('requires independent BCH satoshi value to match the validated output', async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let payload: unknown = [{ txid, vout: 2, value: '546' }];
+  let calls = 0;
+  globalThis.fetch = async () => { calls += 1; return jsonResponse(payload); };
+  const provider = new BlockbookUtxoCrossCheckProvider({ baseUrl: 'https://example.test/api/v2' });
+
+  assert.deepEqual(await provider.check(address, { txid, vout: 2 }, '546'), { state: 'unspent' });
+  assert.deepEqual(await provider.check(address, { txid, vout: 2 }, '547'),
+    { state: 'indeterminate', reason: 'independent UTXO value mismatch' });
+  payload = [{ txid, vout: 2 }];
+  assert.deepEqual(await provider.check(address, { txid, vout: 2 }, '546'),
+    { state: 'indeterminate', reason: 'invalid independent UTXO value' });
+  payload = [{ txid, vout: 2, value: 'not-a-number' }];
+  assert.deepEqual(await provider.check(address, { txid, vout: 2 }, '546'),
+    { state: 'indeterminate', reason: 'invalid independent UTXO value' });
+  const before = calls;
+  assert.deepEqual(await provider.check(address, { txid, vout: 2 }, '546.0'),
+    { state: 'indeterminate', reason: 'invalid query' });
+  assert.equal(calls, before, 'invalid expected BCH value must not reach the provider');
+});
+
+
+test('fails closed on duplicate matching outpoints even if the first value agrees', async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async () => jsonResponse([
+    { txid, vout: 2, value: '546' },
+    { txid: txid.toUpperCase(), vout: 2, value: '547' },
+  ]);
+  const provider = new BlockbookUtxoCrossCheckProvider({ baseUrl: 'https://example.test/api/v2' });
+  assert.deepEqual(await provider.check(address, { txid, vout: 2 }, '546'),
+    { state: 'indeterminate', reason: 'duplicate independent UTXO outpoint' });
+});
+
+test('does not accept a matching outpoint before validating all provider entries', async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let payload: unknown = [];
+  globalThis.fetch = async () => jsonResponse(payload);
+  const provider = new BlockbookUtxoCrossCheckProvider({ baseUrl: 'https://example.test/api/v2' });
+
+  for (const invalid of [
+    { txid: 'not-a-txid', vout: 0 },
+    { txid: 'b'.repeat(64), vout: -1 },
+    { txid: 'b'.repeat(64), vout: 0x1_0000_0000 },
+    { txid: 'b'.repeat(64), vout: '0' },
+    null,
+  ]) {
+    payload = [{ txid, vout: 2, value: '546' }, invalid];
+    assert.deepEqual(await provider.check(address, { txid, vout: 2 }, '546'),
+      { state: 'indeterminate', reason: 'invalid UTXO entry' });
+  }
+});
+
+test('rejects contradictory spent flags and unconfirmed Blockbook matches', async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let entry: Record<string, unknown> = { txid, vout: 2, value: '546', confirmations: 3 };
+  globalThis.fetch = async () => jsonResponse([entry]);
+  const confirmed = new BlockbookUtxoCrossCheckProvider({
+    baseUrl: 'https://example.test/api/v2', confirmedOnly: true,
+  });
+  const query = () => confirmed.check(address, { txid, vout: 2 }, '546');
+
+  entry = { txid, vout: 2, value: '546', spent: true, confirmations: 3 };
+  assert.deepEqual(await query(), {
+    state: 'indeterminate', reason: 'independent UTXO spent flag contradicts unspent status',
+  });
+  entry = { txid, vout: 2, value: '546', spent: 'false', confirmations: 3 };
+  assert.deepEqual(await query(), {
+    state: 'indeterminate', reason: 'independent UTXO spent flag contradicts unspent status',
+  });
+  for (const confirmations of [0, -1, '3', undefined]) {
+    entry = { txid, vout: 2, value: '546', spent: false, confirmations };
+    assert.deepEqual(await query(), {
+      state: 'indeterminate', reason: 'independent UTXO is not confirmed',
+    });
+  }
+  entry = { txid, vout: 2, value: '546', spent: false, confirmations: 3 };
+  assert.deepEqual(await query(), { state: 'unspent' });
+  entry = { txid, vout: 2, value: '546', confirmations: 3 };
+  assert.deepEqual(await query(), { state: 'unspent' });
+  const permissive = new BlockbookUtxoCrossCheckProvider({ baseUrl: 'https://example.test/api/v2' });
+  entry = { txid, vout: 2, value: '546', spent: true };
+  assert.deepEqual(await permissive.check(address, { txid, vout: 2 }), {
+    state: 'indeterminate', reason: 'independent UTXO spent flag contradicts unspent status',
+  });
 });
