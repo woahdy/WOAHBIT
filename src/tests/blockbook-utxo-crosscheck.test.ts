@@ -130,3 +130,38 @@ test('does not accept a matching outpoint before validating all provider entries
       { state: 'indeterminate', reason: 'invalid UTXO entry' });
   }
 });
+
+test('rejects contradictory spent flags and unconfirmed Blockbook matches', async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let entry: Record<string, unknown> = { txid, vout: 2, value: '546', confirmations: 3 };
+  globalThis.fetch = async () => jsonResponse([entry]);
+  const confirmed = new BlockbookUtxoCrossCheckProvider({
+    baseUrl: 'https://example.test/api/v2', confirmedOnly: true,
+  });
+  const query = () => confirmed.check(address, { txid, vout: 2 }, '546');
+
+  entry = { txid, vout: 2, value: '546', spent: true, confirmations: 3 };
+  assert.deepEqual(await query(), {
+    state: 'indeterminate', reason: 'independent UTXO spent flag contradicts unspent status',
+  });
+  entry = { txid, vout: 2, value: '546', spent: 'false', confirmations: 3 };
+  assert.deepEqual(await query(), {
+    state: 'indeterminate', reason: 'independent UTXO spent flag contradicts unspent status',
+  });
+  for (const confirmations of [0, -1, '3', undefined]) {
+    entry = { txid, vout: 2, value: '546', spent: false, confirmations };
+    assert.deepEqual(await query(), {
+      state: 'indeterminate', reason: 'independent UTXO is not confirmed',
+    });
+  }
+  entry = { txid, vout: 2, value: '546', spent: false, confirmations: 3 };
+  assert.deepEqual(await query(), { state: 'unspent' });
+  entry = { txid, vout: 2, value: '546', confirmations: 3 };
+  assert.deepEqual(await query(), { state: 'unspent' });
+  const permissive = new BlockbookUtxoCrossCheckProvider({ baseUrl: 'https://example.test/api/v2' });
+  entry = { txid, vout: 2, value: '546', spent: true };
+  assert.deepEqual(await permissive.check(address, { txid, vout: 2 }), {
+    state: 'indeterminate', reason: 'independent UTXO spent flag contradicts unspent status',
+  });
+});
