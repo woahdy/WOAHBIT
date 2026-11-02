@@ -41,7 +41,23 @@ export class BlockbookUtxoCrossCheckProvider {
 
   constructor(config: BlockbookUtxoCrossCheckConfig) {
     if (!config.baseUrl?.trim()) throw new BchRpcError('Blockbook UTXO base URL is required');
-    this.baseUrl = config.baseUrl.replace(/\/+$/, '');
+    // Enforce transport and URL hygiene at the provider boundary, not only in
+    // the CLI. An auth header must never be sent over remote plain HTTP, and
+    // credentials/query strings must not be embedded in the configured URL.
+    let url: URL;
+    try {
+      url = new URL(config.baseUrl);
+    } catch {
+      throw new BchRpcError('Invalid Blockbook UTXO base URL');
+    }
+    const loopbackHttp = url.protocol === 'http:' &&
+      (url.hostname === 'localhost' || url.hostname === '127.0.0.1');
+    if ((url.protocol !== 'https:' && !loopbackHttp) ||
+        url.username || url.password || url.search || url.hash ||
+        !url.pathname.replace(/\/+$/, '').endsWith('/api/v2')) {
+      throw new BchRpcError('Blockbook UTXO base URL must be HTTPS (or loopback HTTP), end in /api/v2 and contain no credentials, query or fragment');
+    }
+    this.baseUrl = url.toString().replace(/\/+$/, '');
     this.timeoutMs = config.timeoutMs ?? 15_000;
     this.confirmedOnly = config.confirmedOnly ?? false;
     this.headers = { ...(config.headers ?? {}) };
