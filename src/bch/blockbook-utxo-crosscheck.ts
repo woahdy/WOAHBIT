@@ -21,6 +21,8 @@ interface BlockbookUtxo {
   txid?: unknown;
   vout?: unknown;
   value?: unknown;
+  spent?: unknown;
+  confirmations?: unknown;
 }
 
 function validOutpoint(outpoint: Outpoint): boolean {
@@ -82,6 +84,15 @@ export class BlockbookUtxoCrossCheckProvider {
         if (item.txid.toLowerCase() === outpoint.txid.trim().toLowerCase() && item.vout === outpoint.vout) {
           if (matched) return { state: 'indeterminate', reason: 'duplicate independent UTXO outpoint' };
           matched = true;
+          // The UTXO endpoint must not contradict its own unspent/confirmed claim.
+          // A provider that ignores ?confirmed=true cannot establish a survivor.
+          if (item.spent !== undefined && item.spent !== false) {
+            return { state: 'indeterminate', reason: 'independent UTXO spent flag contradicts unspent status' };
+          }
+          if (this.confirmedOnly &&
+              (!Number.isSafeInteger(item.confirmations) || (item.confirmations as number) < 1)) {
+            return { state: 'indeterminate', reason: 'independent UTXO is not confirmed' };
+          }
           if (expectedValueSatoshis !== undefined) {
             if (typeof item.value !== 'string' ||
                 !/^(0|[1-9][0-9]*)$/.test(item.value) ||
